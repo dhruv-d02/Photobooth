@@ -18,6 +18,10 @@ Kotlin Multiplatform + Compose Multiplatform, sharing UI and domain logic (filte
 
 - **iOS builds require a Mac.** Not currently available. Android is the lead platform — build and validate features there first; iOS bring-up (Phase 4) waits until Mac or cloud-CI (Codemagic) access exists. Don't scope work assuming iOS can be tested locally.
 
+## Git workflow
+
+Always checkout a new branch scoped to the feature/area being worked on before committing — e.g. `feature/ui`, `feature/camerax-capture`, `feature/filter-engine`, `chore/project-setup`. Never commit directly to `main`. Leave branches for the maintainer to review/merge rather than merging or pushing to `main` automatically.
+
 ## Working conventions
 
 - Default new logic to `commonMain`. Only drop into `androidMain`/`iosMain` when the API genuinely doesn't exist cross-platform (camera, media store/photos, share sheet, permission dialogs).
