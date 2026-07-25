@@ -205,9 +205,11 @@ Capture at **1200×900 (4:3)**, mirrored horizontally end-to-end (preview, proof
 - Design units: content width 320, padding 16, gap 10, footer 30 (all ×2 on actual output).
 - Strip layout (1 column): each photo 320×240. Grid layout (2 columns): each photo 155×155.
 - Output height = 2·padding + rows·photoHeight + (rows−1)·gap + footer.
-- Draw order: fill frame-color background → draw each photo clipped + mirrored with the film treatment's `ColorMatrix` applied → for F04 only, overlay `#b5d9fd` at Multiply blend, 0.85 alpha → footer: 1px rule at 35% opacity, brand text left, date stamp right.
+- Draw order: fill frame-color background → draw each photo clipped (center-crop to the cell's aspect ratio) with the film treatment's `ColorMatrix` applied → for F04 only, overlay `#b5d9fd` at Multiply blend, 0.85 alpha → footer: 1px rule at 35% opacity, brand text left, date stamp right. **Not mirrored again here** — `CameraController.capturePhoto()` already returns mirrored bytes (Phase 1), so mirroring a second time at compositing would flip the image back to unmirrored. Mirror exactly once, at capture.
 - Frames held as JPEG ~0.92 quality between capture and export; final export is PNG.
 - Lands a vertical strip near 2×6 in at 300 dpi — intentionally matches a physical photobooth strip.
+
+**Implementation status (Phase 2):** `StripCompositor` implements background, photos-with-treatment, and the F04 duotone overlay in full. The footer **rule** (the 1px line) is implemented; the footer **text** (brand left, date stamp right) is not yet — it needs a `FontFamily.Resolver` to construct a `Paragraph` outside a `@Composable` context, its own small piece of platform plumbing, deferred to a follow-up rather than bundled into Phase 2. Don't assume composed output has footer text until that lands.
 
 ## Design system
 

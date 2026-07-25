@@ -57,3 +57,6 @@ Pods/
 
 # Compose Multiplatform build outputs
 composeApp/build/
+
+# Claude Code session-local state (not project content)
+.claude/scheduled_tasks.lock

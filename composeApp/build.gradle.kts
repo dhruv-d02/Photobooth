@@ -61,6 +61,13 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)
         }
+        // Robolectric is Android/JVM-only tooling (it can't compile for iOS targets), so
+        // tests needing real Bitmap/Canvas rendering behavior - not available in the plain
+        // Android unit-test stub jar, see StripCompositorTest's move here for why - live in
+        // this Android-specific test source set instead of commonTest.
+        androidUnitTest.dependencies {
+            implementation(libs.robolectric)
+        }
     }
 }
 
@@ -85,6 +92,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+    }
+    testOptions {
+        unitTests {
+            // Robolectric needs this to load the real Android resource/graphics stack
+            // (Bitmap/Canvas) instead of the stub jar's "not mocked" placeholders.
+            isIncludeAndroidResources = true
         }
     }
 }

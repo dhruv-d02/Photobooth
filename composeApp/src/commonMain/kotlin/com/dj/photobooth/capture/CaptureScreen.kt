@@ -23,17 +23,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.camera.CameraPreviewSurface
+import com.dj.photobooth.compose.decodeJpegToImageBitmap
 import com.dj.photobooth.theme.PhotoboothColors
 import com.dj.photobooth.theme.PhotoboothSpacing
 import com.dj.photobooth.theme.PhotoboothType
 import com.dj.photobooth.ui.CornerTicks
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The Capture screen (design/handoff/README.md § 2): full-bleed dark steel screen, no
@@ -47,6 +55,10 @@ fun CaptureScreen(
     onExitToLanding: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Shared across every rememberDecodedFrame call site on this screen (see that function's
+    // doc comment) so the same accepted frame - visible in both the proof overlay and the
+    // thumbnail row - is decoded once, not twice.
+    val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
     Column(
         modifier = Modifier
@@ -56,7 +68,7 @@ fun CaptureScreen(
         CaptureTopBar(state = state, onExit = { viewModel.onExit(); onExitToLanding() })
 
         Box(modifier = Modifier.weight(1f)) {
-            Viewfinder(state = state, cameraController = cameraController)
+            Viewfinder(state = state, cameraController = cameraController, decodedFrameCache = decodedFrameCache)
         }
 
         CaptureBottomBar(
@@ -64,6 +76,7 @@ fun CaptureScreen(
             onShutter = viewModel::onShutter,
             onKeep = viewModel::onKeep,
             onShootAgain = viewModel::onShootAgain,
+            decodedFrameCache = decodedFrameCache,
         )
     }
 }
@@ -99,7 +112,11 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
 }
 
 @Composable
-private fun Viewfinder(state: CaptureUiState, cameraController: CameraController) {
+private fun Viewfinder(
+    state: CaptureUiState,
+    cameraController: CameraController,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewSurface(
             controller = cameraController,
@@ -156,18 +173,65 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
         )
 
         state.review?.let { review ->
-            ProofOverlay(review = review, state = state)
+            ProofOverlay(review = review, state = state, decodedFrameCache = decodedFrameCache)
         }
     }
 }
 
+/**
+ * Decodes [frame]'s JPEG bytes off the main thread (Dispatchers.Default), so a full-
+ * resolution decode never blocks composition/animation the way the equivalent capture-time
+ * work used to before it was moved off Main in AndroidCameraController. Returns null while
+ * decoding is in flight (explicitly reset below - produceState's initialValue only applies
+ * on first composition, not on every key change, so without the reset a retake could show
+ * the *previous* frame's bitmap while the new one decodes) or for placeholder frames (no
+ * real bytes to decode) or if decoding fails (a corrupt/truncated JPEG throws rather than
+ * crashing the screen - the UI already has a well-defined "no image yet" rendering for this).
+ *
+ * [cache] is shared across every call site in this screen (ThumbnailRow and ProofOverlay both
+ * call this for the same CaptureFrame once it's kept) so a frame is decoded once, not twice -
+ * CaptureFrame's content-based equals/hashCode make it a safe, correct map key.
+ */
 @Composable
-private fun ProofOverlay(review: ReviewState, state: CaptureUiState) {
+private fun rememberDecodedFrame(
+    frame: CaptureFrame?,
+    cache: MutableMap<CaptureFrame, ImageBitmap>,
+): ImageBitmap? {
+    val decoded by produceState<ImageBitmap?>(initialValue = null, frame) {
+        value = null
+        if (frame == null || frame.isPlaceholder) return@produceState
+        cache[frame]?.let { value = it; return@produceState }
+        val bitmap = try {
+            withContext(Dispatchers.Default) { decodeJpegToImageBitmap(frame.jpegBytes) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        if (bitmap != null) cache[frame] = bitmap
+        value = bitmap
+    }
+    return decoded
+}
+
+@Composable
+private fun ProofOverlay(
+    review: ReviewState,
+    state: CaptureUiState,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
+    val decoded = rememberDecodedFrame(review.frame, decodedFrameCache)
     Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
-        // TODO(phase-2): draw the actual mirrored frame bitmap here once the shared
-        // decode/compositing path exists; placeholder frames render as text-only for now
-        // (see CaptureFrame.isPlaceholder), and real frames just show the proof chip on a
-        // solid ground until then.
+        if (decoded != null) {
+            androidx.compose.foundation.Image(
+                painter = BitmapPainter(decoded),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        // Placeholder frames (camera denied/unavailable) have no image to decode - the
+        // proof chip below is all they show, per CaptureFrame.isPlaceholder's contract.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -202,6 +266,7 @@ private fun CaptureBottomBar(
     onShutter: () -> Unit,
     onKeep: () -> Unit,
     onShootAgain: () -> Unit,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
 ) {
     Column(
         modifier = Modifier
@@ -209,7 +274,7 @@ private fun CaptureBottomBar(
             .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
         verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
     ) {
-        ThumbnailRow(state = state)
+        ThumbnailRow(state = state, decodedFrameCache = decodedFrameCache)
 
         if (state.review != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge)) {
@@ -269,9 +334,10 @@ private fun CaptureBottomBar(
 }
 
 @Composable
-private fun ThumbnailRow(state: CaptureUiState) {
+private fun ThumbnailRow(state: CaptureUiState, decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>) {
     Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.sm), modifier = Modifier.fillMaxWidth()) {
         state.frames.forEachIndexed { index, frame ->
+            val decoded = rememberDecodedFrame(frame, decodedFrameCache)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -280,8 +346,14 @@ private fun ThumbnailRow(state: CaptureUiState) {
                     .border(1.dp, if (frame != null) PhotoboothColors.OnDarkAccent else PhotoboothColors.HairlineOnDark),
                 contentAlignment = Alignment.BottomStart,
             ) {
-                // TODO(phase-2): render frame.jpegBytes as the mirrored thumbnail image once
-                // the shared decode path exists.
+                if (decoded != null) {
+                    androidx.compose.foundation.Image(
+                        painter = BitmapPainter(decoded),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 if (frame != null) {
                     Text(
                         state.frameLabel(index),
