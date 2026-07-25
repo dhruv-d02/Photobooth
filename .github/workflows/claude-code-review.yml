@@ -1,0 +1,49 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request for the Photobooth app (Kotlin Multiplatform +
+            Compose Multiplatform, targeting Android and iOS). Read CLAUDE.md and
+            architecture.md first for project conventions before reviewing code.
+
+            Focus on:
+            - Correctness bugs and edge cases
+            - Violations of documented conventions: commonMain-first (only drop into
+              androidMain/iosMain when the platform API genuinely has no shared
+              equivalent), the reshoot-same-slot-index invariant in the capture loop
+              (a reshoot must never append/shift — it always replaces the same frame
+              index), uncapped gallery history (no eviction/cap logic), and
+              Skia-based shared film-treatment/compositing logic (no per-platform
+              native image processing as a shortcut)
+            - Consistency with the design handoff (design/handoff/README.md) where
+              UI code is touched — exact colors, spacing, type, and the "Industry"
+              blueprint aesthetic (square corners, hairline borders, "+" registration
+              marks, radius 0)
+            - Simplification/reuse opportunities and obvious performance issues
+              (e.g. heavy capture/filter/compositing work left on the main thread)
+
+            Leave inline comments on specific lines for concrete issues found. Skip
+            generic praise and stylistic nitpicks that don't affect correctness,
+            architectural fit, or maintainability.
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

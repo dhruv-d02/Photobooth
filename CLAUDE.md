@@ -44,6 +44,10 @@ Always checkout a new branch scoped to the feature/area being worked on before c
 5. Phase 4 — iOS bring-up (blocked, see above).
 6. Phase 5 — branding (app name still undecided), icons, store prep.
 
+## Automated review
+
+Every pull request is automatically reviewed by Claude (`.github/workflows/claude-code-review.yml`, using `anthropics/claude-code-action`) against this file and `architecture.md`. It requires an `ANTHROPIC_API_KEY` repository secret to run — set up once via GitHub repo Settings → Secrets and variables → Actions, not committed anywhere.
+
 ## Where to look
 
 - `README.md` — project pitch, feature list, status.
