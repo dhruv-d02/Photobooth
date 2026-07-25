@@ -1,58 +1,35 @@
 package com.dj.photobooth
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.border
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.dj.photobooth.theme.PhotoboothColors
-import com.dj.photobooth.theme.PhotoboothSpacing
+import androidx.compose.runtime.remember
+import com.dj.photobooth.camera.CameraController
+import com.dj.photobooth.capture.CaptureScreen
+import com.dj.photobooth.capture.CaptureViewModel
 import com.dj.photobooth.theme.PhotoboothTheme
-import com.dj.photobooth.theme.PhotoboothType
-import com.dj.photobooth.ui.CornerTicks
 
 /**
- * Phase 0 root composable: a deliberately minimal placeholder, not the real Landing
- * screen (design/handoff/README.md § 1, variant 1a "Spec sheet"). Its job is only to
- * prove the KMP + Compose Multiplatform scaffold, the design-token theme, and the
- * CornerTicks motif all actually work end-to-end on a real device before any screen
- * work starts in Phase 1+. Building the real Landing screen here would jump ahead of
- * the phased build sequence in CLAUDE.md.
+ * Root composable. Temporarily hosts CaptureScreen directly - there's no Landing screen or
+ * tab navigation yet (that's a separate, later piece of work); wiring Capture as a reachable,
+ * testable unit on its own first, matches the project's phased build sequence in CLAUDE.md
+ * better than building navigation around screens that don't exist yet.
+ *
+ * [cameraController] is constructed per-platform (MainActivity on Android, MainViewController
+ * on iOS) and threaded down here, since Koin/DI isn't wired yet either - plain constructor
+ * injection is enough for the one dependency this currently needs.
+ *
+ * CaptureViewModel is `remember`ed rather than obtained via the androidx.lifecycle.viewmodel
+ * `viewModel()` composable factory - it survives recomposition but not e.g. an Android
+ * configuration change. Acceptable simplification for now; revisit once real navigation
+ * (and a natural place to own ViewModelStoreOwner scoping) exists.
  */
 @Composable
-fun App() {
+fun App(cameraController: CameraController) {
     PhotoboothTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PhotoboothColors.Ground),
-            contentAlignment = Alignment.Center,
-        ) {
-            // The inner content padding must NOT be part of the modifier chain passed to
-            // CornerTicks: CornerTicks aligns its "+" marks to that Box's own bounds, so
-            // any padding baked into this chain shrinks those bounds and pulls the marks
-            // back inside the visible border instead of landing outside it. The border/
-            // background belong here (they define the box CornerTicks decorates); the
-            // content padding moves onto the Text itself, below, where it only affects
-            // the text's position, not where the corner ticks are anchored.
-            CornerTicks(
-                modifier = Modifier
-                    .padding(PhotoboothSpacing.xl)
-                    .border(1.dp, PhotoboothColors.Accent)
-                    .background(PhotoboothColors.Paper),
-            ) {
-                Text(
-                    text = "PHOTOBOOTH — SCAFFOLD OK",
-                    style = PhotoboothType.heading12,
-                    color = PhotoboothColors.Accent,
-                    modifier = Modifier.padding(PhotoboothSpacing.lgLarge),
-                )
-            }
-        }
+        val viewModel = remember(cameraController) { CaptureViewModel(cameraController) }
+        CaptureScreen(
+            viewModel = viewModel,
+            cameraController = cameraController,
+            onExitToLanding = { /* no-op until the Landing screen exists */ },
+        )
     }
 }

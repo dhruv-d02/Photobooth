@@ -24,6 +24,11 @@ private val MetaFamily = FontFamily.Monospace
  * in design/handoff/README.md rather than reinventing sizes ad hoc.
  */
 object PhotoboothType {
+    // The Capture screen's countdown digit is a one-off outside the general heading scale -
+    // design/handoff/README.md line 105 specifies 150px specifically for this element, not
+    // one of the token sizes in the § Type summary (64/52/42/36/19/18/13/12/11/10px).
+    val countdownDisplay = heading(150.sp, FontWeight.Bold, letterSpacingEm = 0.04f, lineHeight = 1.0f)
+
     // Headings: Barlow Condensed 600/700, uppercase, tight/negative letter-spacing on the
     // largest display sizes. Callers apply `.uppercase()` to the string, not a style flag,
     // since Compose has no built-in uppercase text transform.
@@ -55,6 +60,11 @@ object PhotoboothType {
     val meta10 = meta(10.sp, letterSpacingEm = 0.14f)
     val meta9 = meta(9.sp, letterSpacingEm = 0.16f)
     val meta8 = meta(8.sp, letterSpacingEm = 0.20f)
+
+    // The Capture screen's proof-frame chip ("PROOF 02") is bold monospace, unlike every
+    // other metadata label - design/handoff/README.md line 114 specifies "monospace 600
+    // 11px" specifically for this chip, so meta11's hardcoded Normal weight doesn't apply.
+    val metaChip11 = buildStyle(MetaFamily, FontWeight.SemiBold, 11.sp)
 
     // heading()/body()/meta() are thin, category-specific wrappers (fixed family per
     // category, meta always weight Normal, only heading/body take a line-height multiplier)

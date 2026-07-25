@@ -33,6 +33,14 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            // CameraX: core (use-case framework) + camera2 (the Camera2-backed implementation
+            // it needs at runtime) + lifecycle (bindToLifecycle, so the camera session follows
+            // the Activity/lifecycle owner automatically) + view (PreviewView, the Android View
+            // we host in a Compose AndroidView for the live preview surface).
+            implementation(libs.androidx.camera.core)
+            implementation(libs.androidx.camera.camera2)
+            implementation(libs.androidx.camera.lifecycle)
+            implementation(libs.androidx.camera.view)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -41,6 +49,17 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
+            implementation(libs.kotlinx.coroutines.core)
+            // MVVM: CaptureViewModel extends androidx.lifecycle.ViewModel (multiplatform
+            // artifact) so it gets real lifecycle-scoped survival semantics (survives
+            // recomposition and, on Android, configuration changes) instead of a plain class
+            // that only survives via `remember`.
+            implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.runtime.compose)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }
