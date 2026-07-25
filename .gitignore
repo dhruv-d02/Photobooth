@@ -32,3 +32,28 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Kotlin Multiplatform
+.kotlin/
+kotlin-js-store/
+
+# Xcode / iOS
+iosApp/**/xcuserdata/
+iosApp/**/*.xcuserstate
+iosApp/**/DerivedData/
+iosApp/**/.build/
+iosApp/Pods/
+*.xcworkspace/xcuserdata/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# CocoaPods (if adopted later)
+Pods/
+
+# macOS
+.DS_Store
+
+# Compose Multiplatform build outputs
+composeApp/build/
