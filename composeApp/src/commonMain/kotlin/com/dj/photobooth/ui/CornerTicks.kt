@@ -22,11 +22,27 @@ import com.dj.photobooth.theme.PhotoboothColors
 private val TickOffsetX = 7.dp
 private val TickOffsetY = 5.dp
 
+// Each corner's Alignment and its outward offset direction are two facts about the same
+// corner, not two independent choices - pairing them here, once, means a call site can't
+// mismatch them (e.g. TopEnd with a leftward-pointing offset) the way passing Alignment and
+// signed Dp values separately at each call site could.
+private enum class Corner(val alignment: Alignment, val signX: Int, val signY: Int) {
+    TopStart(Alignment.TopStart, signX = -1, signY = -1),
+    TopEnd(Alignment.TopEnd, signX = 1, signY = -1),
+    BottomStart(Alignment.BottomStart, signX = -1, signY = 1),
+    BottomEnd(Alignment.BottomEnd, signX = 1, signY = 1),
+}
+
 /**
  * Wraps [content] in a Box and overlays four "+" registration marks just outside its
  * corners, per the design's blueprint aesthetic. The marks are plain monospace glyphs
  * (not vector-drawn crosses) at 12sp, offset ~7px horizontally / ~5px vertically outward
  * from each corner so they read as printer's registration marks around a framed object.
+ *
+ * The [modifier] passed in should describe only the framed object itself (its border/
+ * background) - any inner content padding belongs on the content, not on this modifier,
+ * since the ticks align to this Box's own bounds and inner padding would pull them back
+ * inside the visible frame instead of landing outside it.
  */
 @Composable
 fun CornerTicks(
@@ -36,27 +52,19 @@ fun CornerTicks(
 ) {
     Box(modifier = modifier) {
         content()
-        CornerTick(Alignment.TopStart, -TickOffsetX, -TickOffsetY, tickColor)
-        CornerTick(Alignment.TopEnd, TickOffsetX, -TickOffsetY, tickColor)
-        CornerTick(Alignment.BottomStart, -TickOffsetX, TickOffsetY, tickColor)
-        CornerTick(Alignment.BottomEnd, TickOffsetX, TickOffsetY, tickColor)
+        Corner.entries.forEach { corner -> CornerTick(corner, tickColor) }
     }
 }
 
 @Composable
-private fun BoxScope.CornerTick(
-    alignment: Alignment,
-    offsetX: androidx.compose.ui.unit.Dp,
-    offsetY: androidx.compose.ui.unit.Dp,
-    color: Color,
-) {
+private fun BoxScope.CornerTick(corner: Corner, color: Color) {
     Text(
         text = "+",
         color = color,
         fontFamily = FontFamily.Monospace,
         fontSize = 12.sp,
         modifier = Modifier
-            .align(alignment)
-            .offset(x = offsetX, y = offsetY),
+            .align(corner.alignment)
+            .offset(x = TickOffsetX * corner.signX, y = TickOffsetY * corner.signY),
     )
 }

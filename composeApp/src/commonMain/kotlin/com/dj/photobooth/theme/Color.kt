@@ -37,14 +37,8 @@ object PhotoboothColors {
     val SurfaceWashTranslucent = SurfaceWash.copy(alpha = 0x66 / 255f)
 }
 
-/** Frame-color presets — the strip/grid background choices on the Preview screen. */
-enum class FrameColorPreset(
-    val background: Color,
-    val text: Color,
-    val dim: Color,
-) {
-    Paper(PhotoboothColors.Paper, PhotoboothColors.TextPrimary, PhotoboothColors.TextMuted),
-    Steel(PhotoboothColors.AccentDeeper, PhotoboothColors.Paper, PhotoboothColors.AccentTintStrong),
-    Ink(PhotoboothColors.Ink, PhotoboothColors.Paper, PhotoboothColors.OnInkSecondaryText),
-    Sky(PhotoboothColors.AccentTintMedium, PhotoboothColors.DarkSurface, PhotoboothColors.AccentPressed),
-}
+// Frame-color presets (the strip/grid background choices on the Preview screen) are Phase 2
+// work per CLAUDE.md's build sequence, not Phase 0 scaffolding - deliberately not defined
+// here yet. Add a FrameColorPreset enum (Paper/Steel/Ink/Sky, per design/handoff/README.md's
+// Design Tokens § Frame options) when the Preview screen is actually built, using the color
+// tokens above.

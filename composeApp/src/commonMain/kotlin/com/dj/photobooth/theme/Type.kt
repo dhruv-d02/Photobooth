@@ -3,6 +3,7 @@ package com.dj.photobooth.theme
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
@@ -30,11 +31,17 @@ object PhotoboothType {
     val display52 = heading(52.sp, FontWeight.Bold, letterSpacingEm = -0.01f, lineHeight = 0.9f)
     val display42 = heading(42.sp, FontWeight.Bold, lineHeight = 1.0f)
     val heading36 = heading(36.sp, FontWeight.Bold, lineHeight = 1.05f)
-    val heading19 = heading(19.sp, FontWeight.SemiBold, letterSpacingEm = 0.12f)
+    // 19px heading (BEGIN COUNTDOWN button, procedure-list titles): design/handoff/README.md
+    // lines 85 and 91 both specify .14em, not the .12em this used to carry (copy-pasted from
+    // heading18, which is a genuinely different letter-spacing value).
+    val heading19 = heading(19.sp, FontWeight.SemiBold, letterSpacingEm = 0.14f)
     val heading18 = heading(18.sp, FontWeight.SemiBold, letterSpacingEm = 0.12f)
     val heading13 = heading(13.sp, FontWeight.SemiBold, letterSpacingEm = 0.14f)
     val heading12 = heading(12.sp, FontWeight.SemiBold, letterSpacingEm = 0.14f)
-    val heading11 = heading(11.sp, FontWeight.Medium, letterSpacingEm = 0.14f)
+    // 11px heading (bottom-tab-bar labels): design/handoff/README.md line 48 specifies
+    // weight 600 (SemiBold), not 500 (Medium) - this also matches the "600/700" claim in
+    // the comment above rather than contradicting it as the Medium weight used to.
+    val heading11 = heading(11.sp, FontWeight.SemiBold, letterSpacingEm = 0.14f)
     val heading10 = heading(10.sp, FontWeight.SemiBold, letterSpacingEm = 0.16f)
 
     // Body: Barlow 300-500, sentence case, generous line-height for readability.
@@ -49,37 +56,42 @@ object PhotoboothType {
     val meta9 = meta(9.sp, letterSpacingEm = 0.16f)
     val meta8 = meta(8.sp, letterSpacingEm = 0.20f)
 
+    // heading()/body()/meta() are thin, category-specific wrappers (fixed family per
+    // category, meta always weight Normal, only heading/body take a line-height multiplier)
+    // around one shared TextStyle builder, instead of each independently reconstructing a
+    // TextStyle(...) with its own ad-hoc subset of parameters - keeps the one place that
+    // actually assembles a TextStyle single, while preserving the real per-category
+    // differences (letterSpacingEm/lineHeightMultiplier default to "unspecified", matching
+    // Compose's own TextStyle defaults, when a category doesn't set them).
     private fun heading(
-        size: androidx.compose.ui.unit.TextUnit,
+        size: TextUnit,
         weight: FontWeight,
         letterSpacingEm: Float = 0.04f,
         lineHeight: Float = 1.0f,
-    ) = TextStyle(
-        fontFamily = HeadingFamily,
-        fontWeight = weight,
-        fontSize = size,
-        lineHeight = size * lineHeight,
-        letterSpacing = letterSpacingEm.em,
-    )
+    ) = buildStyle(HeadingFamily, weight, size, letterSpacingEm, lineHeight)
 
     private fun body(
-        size: androidx.compose.ui.unit.TextUnit,
+        size: TextUnit,
         weight: FontWeight,
         lineHeight: Float,
-    ) = TextStyle(
-        fontFamily = BodyFamily,
-        fontWeight = weight,
-        fontSize = size,
-        lineHeight = size * lineHeight,
-    )
+    ) = buildStyle(BodyFamily, weight, size, lineHeightMultiplier = lineHeight)
 
     private fun meta(
-        size: androidx.compose.ui.unit.TextUnit,
+        size: TextUnit,
         letterSpacingEm: Float,
+    ) = buildStyle(MetaFamily, FontWeight.Normal, size, letterSpacingEm)
+
+    private fun buildStyle(
+        family: FontFamily,
+        weight: FontWeight,
+        size: TextUnit,
+        letterSpacingEm: Float? = null,
+        lineHeightMultiplier: Float? = null,
     ) = TextStyle(
-        fontFamily = MetaFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = family,
+        fontWeight = weight,
         fontSize = size,
-        letterSpacing = letterSpacingEm.em,
+        lineHeight = lineHeightMultiplier?.let { size * it } ?: TextUnit.Unspecified,
+        letterSpacing = letterSpacingEm?.em ?: TextUnit.Unspecified,
     )
 }

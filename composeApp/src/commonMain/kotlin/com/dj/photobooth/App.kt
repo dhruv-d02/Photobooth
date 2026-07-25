@@ -33,17 +33,24 @@ fun App() {
                 .background(PhotoboothColors.Ground),
             contentAlignment = Alignment.Center,
         ) {
+            // The inner content padding must NOT be part of the modifier chain passed to
+            // CornerTicks: CornerTicks aligns its "+" marks to that Box's own bounds, so
+            // any padding baked into this chain shrinks those bounds and pulls the marks
+            // back inside the visible border instead of landing outside it. The border/
+            // background belong here (they define the box CornerTicks decorates); the
+            // content padding moves onto the Text itself, below, where it only affects
+            // the text's position, not where the corner ticks are anchored.
             CornerTicks(
                 modifier = Modifier
                     .padding(PhotoboothSpacing.xl)
                     .border(1.dp, PhotoboothColors.Accent)
-                    .background(PhotoboothColors.Paper)
-                    .padding(PhotoboothSpacing.lgLarge),
+                    .background(PhotoboothColors.Paper),
             ) {
                 Text(
                     text = "PHOTOBOOTH — SCAFFOLD OK",
                     style = PhotoboothType.heading12,
                     color = PhotoboothColors.Accent,
+                    modifier = Modifier.padding(PhotoboothSpacing.lgLarge),
                 )
             }
         }

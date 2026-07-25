@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
@@ -9,12 +6,13 @@ plugins {
 }
 
 kotlin {
-    androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
+    // Sets the JDK toolchain once for every Kotlin compile task (Android + iOS), instead of
+    // separately via androidTarget's compilerOptions.jvmTarget and AGP's own
+    // compileOptions.sourceCompatibility/targetCompatibility - one source of truth instead
+    // of three settings that could drift out of sync.
+    jvmToolchain(11)
+
+    androidTarget()
 
     // iosX64 (Intel simulator) is intentionally omitted - Compose Multiplatform 1.11.1
     // doesn't publish artifacts for it (Apple Silicon has been the default Mac for years).
@@ -61,11 +59,14 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Minification is off for now, so these rules are inert today - but wiring
+            // them in now means Phase 5 (store prep) can flip isMinifyEnabled = true
+            // without also having to remember to add this scaffold at the same time.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 

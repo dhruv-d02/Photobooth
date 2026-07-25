@@ -3,7 +3,6 @@ package com.dj.photobooth.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -23,10 +22,9 @@ private val SquareShapes = Shapes(
 
 // Compose Multiplatform components (Material3 buttons, text fields, etc.) still expect a
 // MaterialTheme color scheme even though this app's visual language is mostly custom-drawn
-// rather than stock Material. We map our design tokens onto the two closest M3 slots
-// (light = "paper" screens, dark = "steel" camera/immersive screens) so any Material
-// component we do use (e.g. ripple, focus indication) picks up the right base colors
-// instead of Material's default purple.
+// rather than stock Material. We map our design tokens onto the closest M3 slots so any
+// Material component we do use (e.g. ripple, focus indication) picks up the right base
+// colors instead of Material's default purple.
 private val LightScheme = lightColorScheme(
     background = PhotoboothColors.Ground,
     surface = PhotoboothColors.Paper,
@@ -36,28 +34,15 @@ private val LightScheme = lightColorScheme(
     onSurface = PhotoboothColors.TextPrimary,
 )
 
-private val DarkScheme = darkColorScheme(
-    background = PhotoboothColors.DarkSurface,
-    surface = PhotoboothColors.DarkSurface,
-    primary = PhotoboothColors.OnDarkAccent,
-    onPrimary = PhotoboothColors.DarkSurface,
-    onBackground = PhotoboothColors.Paper,
-    onSurface = PhotoboothColors.Paper,
-)
-
-/**
- * Root theme wrapper. `darkSurface` is a deliberate per-screen choice, not a system
- * dark-mode toggle - the design pairs a light "paper" ground on most screens with a dark
- * "steel" surface specifically on the Capture screen (design/handoff/README.md § 2), so
- * screens opt in explicitly rather than following the device's light/dark setting.
- */
+// Just one scheme for now: Phase 0 has a single (light) placeholder screen, so a dark
+// "steel" scheme would be unexercised, unverified code. The design does call for a dark
+// surface on the Capture screen (design/handoff/README.md § 2) - add a DarkScheme and a
+// darkSurface toggle back here in whichever phase actually builds that screen, so it ships
+// tested against real content instead of speculative.
 @Composable
-fun PhotoboothTheme(
-    darkSurface: Boolean = false,
-    content: @Composable () -> Unit,
-) {
+fun PhotoboothTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkSurface) DarkScheme else LightScheme,
+        colorScheme = LightScheme,
         shapes = SquareShapes,
         content = content,
     )
