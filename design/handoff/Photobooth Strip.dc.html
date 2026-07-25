@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="stylesheet" href="_ds/industry-8925e34a-aee7-45d9-9153-32256e1a982c/styles.css">
+<script src="_ds/industry-8925e34a-aee7-45d9-9153-32256e1a982c/_ds_bundle.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap">
+<style>
+body{margin:0;background:#e9e9ea;color:#1d1f20;font-family:"Barlow",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#416180;text-decoration:none}a:hover{color:#2c455d}
+button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+::selection{background:#b5d9fd}
+::-webkit-scrollbar{width:0;height:0}
+@keyframes pbrise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:17px;padding:34px 20px;background:#e9e9ea;background-image:linear-gradient(#1d1f2008 1px,transparent 1px),linear-gradient(90deg,#1d1f2008 1px,transparent 1px);background-size:27.2px 27.2px">
+
+  <div style="display:flex;align-items:center;gap:13.6px;flex-wrap:wrap;justify-content:center">
+    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;letter-spacing:.08em;text-transform:uppercase">{{ brand }} · Android</span>
+    <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#5d5d60;text-transform:uppercase">412 × 892 · {{ statusLine }}</span>
+    <div style="display:flex;border:1px solid #1d1f2029;background:#f2f2f3">
+      <button onClick="{{ setVarA }}" style="font:600 11px/1 ui-monospace,Menlo,monospace;padding:7px 12px;border:0;border-right:1px solid #1d1f2029;border-radius:0;background:{{ vaBg }};color:{{ vaFg }}">1a</button>
+      <button onClick="{{ setVarB }}" style="font:600 11px/1 ui-monospace,Menlo,monospace;padding:7px 12px;border:0;border-right:1px solid #1d1f2029;border-radius:0;background:{{ vbBg }};color:{{ vbFg }}">1b</button>
+      <button onClick="{{ setVarC }}" style="font:600 11px/1 ui-monospace,Menlo,monospace;padding:7px 12px;border:0;border-radius:0;background:{{ vcBg }};color:{{ vcFg }}">1c</button>
+    </div>
+    <span style="font:400 11px/1.3 'Barlow',sans-serif;color:#5d5d60">{{ variantNote }}</span>
+  </div>
+
+  <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ deviceDark }}" hint-size="412px,892px">
+    <div style="height:100%;display:flex;flex-direction:column;background:{{ screenBg }};font-family:'Barlow',system-ui,sans-serif">
+
+      <sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+
+          <sc-if value="{{ isA }}" hint-placeholder-val="{{ true }}">
+            <div id="1a" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto;background:#f2f2f3;background-image:linear-gradient(#1d1f2008 1px,transparent 1px),linear-gradient(90deg,#1d1f2008 1px,transparent 1px);background-size:27.2px 27.2px">
+              <div style="padding:27.2px 20.4px 17px;display:flex;flex-direction:column;gap:13.6px;border-bottom:1px solid #1d1f2029">
+                <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:#416180;text-transform:uppercase">spec 01 — {{ frameCount }} exposures, one strip</span>
+                <h1 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:52px;line-height:.9;letter-spacing:-.01em;text-transform:uppercase">Four frames.<br>One strip.<br>No booth.</h1>
+                <p style="margin:0;font-size:15px;line-height:1.5;color:#424244;text-wrap:pretty">Your camera fires four times on a countdown, then lays the exposures into a photobooth strip you can tint, filter and save to your phone.</p>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:20.4px">
+                <div style="position:relative;padding:10.2px;border:1px solid #5980a6;background:#f5f5f8;display:flex;flex-direction:column;gap:6.8px;width:150px">
+                  <i style="position:absolute;top:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;top:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <div style="aspect-ratio:4/3;border:1px solid #1d1f2029;background:repeating-linear-gradient(45deg,#dfe7f0,#dfe7f0 4px,#eef6ff 4px,#eef6ff 8px)"></div>
+                  <div style="aspect-ratio:4/3;border:1px solid #1d1f2029;background:repeating-linear-gradient(45deg,#dfe7f0,#dfe7f0 4px,#eef6ff 4px,#eef6ff 8px)"></div>
+                  <div style="aspect-ratio:4/3;border:1px solid #1d1f2029;background:repeating-linear-gradient(45deg,#dfe7f0,#dfe7f0 4px,#eef6ff 4px,#eef6ff 8px)"></div>
+                  <div style="aspect-ratio:4/3;border:1px solid #1d1f2029;background:repeating-linear-gradient(45deg,#dfe7f0,#dfe7f0 4px,#eef6ff 4px,#eef6ff 8px)"></div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:3.4px;border-top:1px solid #1d1f2029">
+                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:10px;letter-spacing:.14em;text-transform:uppercase">{{ brand }}</span>
+                    <span style="font:400 8px/1 ui-monospace,monospace;color:#5d5d60">2×6 IN</span>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:17px 20.4px 20.4px;display:flex;flex-direction:column;gap:10.2px;border-top:1px solid #1d1f2029">
+                <button onClick="{{ startSession }}" style="position:relative;width:100%;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:.12em;text-transform:uppercase;padding:17px;background:#5980a6;color:#f5f5f8;border:1px solid #5980a6;border-radius:0" style-active="background:#416180;border-color:#416180">
+                  Start session
+                  <i style="position:absolute;top:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;top:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                </button>
+                <span style="font:400 10px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:#5d5d60;text-transform:uppercase;text-align:center">camera permission required · nothing leaves this device</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isB }}" hint-placeholder-val="{{ false }}">
+            <div id="1b" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:24px;padding:34px 20.4px;background:#1d2d3d;color:#f5f5f8;background-image:linear-gradient(#f5f5f80a 1px,transparent 1px),linear-gradient(90deg,#f5f5f80a 1px,transparent 1px);background-size:27.2px 27.2px">
+              <span style="font:400 10px/1.6 ui-monospace,Menlo,monospace;letter-spacing:.2em;color:#94bce3;text-transform:uppercase;text-align:center">hold the phone up<br>look at the lens · hold still</span>
+              <h1 style="margin:0;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:64px;line-height:.86;letter-spacing:-.015em;text-transform:uppercase">Photobooth,<br>minus the<br>booth</h1>
+              <div style="display:flex;flex-direction:column;gap:6.8px;align-items:center">
+                <div style="width:104px;aspect-ratio:4/3;border:1px solid #94bce3;opacity:.9"></div>
+                <div style="width:104px;aspect-ratio:4/3;border:1px solid #94bce3;opacity:.6"></div>
+                <div style="width:104px;aspect-ratio:4/3;border:1px solid #94bce3;opacity:.3"></div>
+              </div>
+              <div style="width:100%;display:flex;flex-direction:column;gap:10.2px;align-items:center">
+                <button onClick="{{ startSession }}" style="width:100%;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;letter-spacing:.14em;text-transform:uppercase;padding:17px;background:#f5f5f8;color:#1d2d3d;border:1px solid #f5f5f8;border-radius:0" style-active="background:#94bce3;border-color:#94bce3">Begin countdown</button>
+                <p style="margin:0;font:400 10px/1.5 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:#9ebbd8;text-transform:uppercase;text-align:center">{{ frameCount }} exposures · 3 second countdown · png out</p>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isC }}" hint-placeholder-val="{{ false }}">
+            <div id="1c" style="flex:1;display:flex;flex-direction:column;min-height:0;overflow:auto;background:#f2f2f3">
+              <div style="padding:27.2px 20.4px 13.6px;display:flex;flex-direction:column;gap:6.8px;border-bottom:1px solid #1d1f2029">
+                <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:#416180;text-transform:uppercase">operating procedure</span>
+                <h1 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:42px;line-height:.95;text-transform:uppercase">Make a strip in four steps</h1>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column">
+                <div style="padding:17px 20.4px;border-bottom:1px solid #1d1f2029;display:flex;gap:13.6px;align-items:flex-start">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.9;color:#b5d9fd;min-width:44px">01</span>
+                  <div style="display:flex;flex-direction:column;gap:3.4px">
+                    <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase">Allow camera</h3>
+                    <p style="margin:0;font-size:14px;line-height:1.45;color:#424244">One prompt. The feed stays on your phone — no upload, no account.</p>
+                  </div>
+                </div>
+                <div style="padding:17px 20.4px;border-bottom:1px solid #1d1f2029;display:flex;gap:13.6px;align-items:flex-start">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.9;color:#b5d9fd;min-width:44px">02</span>
+                  <div style="display:flex;flex-direction:column;gap:3.4px">
+                    <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase">Four exposures</h3>
+                    <p style="margin:0;font-size:14px;line-height:1.45;color:#424244">A three count, a flash, repeat. Change a face each time.</p>
+                  </div>
+                </div>
+                <div style="padding:17px 20.4px;border-bottom:1px solid #1d1f2029;display:flex;gap:13.6px;align-items:flex-start">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.9;color:#b5d9fd;min-width:44px">03</span>
+                  <div style="display:flex;flex-direction:column;gap:3.4px">
+                    <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase">Tint & filter</h3>
+                    <p style="margin:0;font-size:14px;line-height:1.45;color:#424244">Frame colour, film treatment, vertical strip or 2×2 grid.</p>
+                  </div>
+                </div>
+                <div style="padding:17px 20.4px;display:flex;gap:13.6px;align-items:flex-start;background:#e9e9ea66">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:.9;color:#b5d9fd;min-width:44px">04</span>
+                  <div style="display:flex;flex-direction:column;gap:3.4px">
+                    <h3 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;letter-spacing:.04em;text-transform:uppercase">Save it</h3>
+                    <p style="margin:0;font-size:14px;line-height:1.45;color:#424244">A print-ready PNG to your photos, plus a copy in your gallery.</p>
+                  </div>
+                </div>
+              </div>
+              <div style="padding:17px 20.4px;border-top:1px solid #1d1f2029">
+                <button onClick="{{ startSession }}" style="width:100%;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;letter-spacing:.12em;text-transform:uppercase;padding:17px;background:#5980a6;color:#f5f5f8;border:1px solid #5980a6;border-radius:0" style-active="background:#416180;border-color:#416180">Start session</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isCapture }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;background:#1d2d3d;color:#f5f5f8">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10.2px;padding:13.6px 17px">
+            <button onClick="{{ goHome }}" style="min-height:44px;min-width:44px;display:flex;align-items:center;gap:6px;padding:0 10px;background:transparent;border:1px solid #f5f5f833;border-radius:0;color:#f5f5f8;font:500 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase" style-active="background:#f5f5f81a">← Exit</button>
+            <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#94bce3;text-transform:uppercase">{{ captureLabel }}</span>
+            <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#9ebbd8;text-transform:uppercase;min-width:44px;text-align:right">{{ recLabel }}</span>
+          </div>
+
+          <div style="position:relative;flex:1;min-height:0;overflow:hidden;border-top:1px solid #f5f5f826;border-bottom:1px solid #f5f5f826">
+            <video ref="{{ videoRef }}" playsInline="{{ true }}" muted="{{ true }}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:{{ viewfinderBg }}"></video>
+            <div style="position:absolute;inset:13.6px;pointer-events:none;border:1px solid #f5f5f826"></div>
+            <i style="position:absolute;top:8px;left:10px;font:normal 12px/1 ui-monospace,monospace;color:#94bce3">+</i>
+            <i style="position:absolute;top:8px;right:10px;font:normal 12px/1 ui-monospace,monospace;color:#94bce3">+</i>
+            <i style="position:absolute;bottom:8px;left:10px;font:normal 12px/1 ui-monospace,monospace;color:#94bce3">+</i>
+            <i style="position:absolute;bottom:8px;right:10px;font:normal 12px/1 ui-monospace,monospace;color:#94bce3">+</i>
+            <div style="position:absolute;inset:0;background:#f5f5f8;opacity:{{ flashOpacity }};transition:opacity 120ms linear;pointer-events:none"></div>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+              <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:150px;line-height:1;color:#f5f5f8;text-shadow:0 4px 24px #1d2d3d99;opacity:{{ countOpacity }}">{{ countdown }}</span>
+            </div>
+            <div style="position:absolute;left:20.4px;bottom:20.4px;font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;color:#f5f5f8cc;text-transform:uppercase">{{ camLabel }}</div>
+            <div style="position:absolute;right:20.4px;bottom:20.4px;font:400 10px/1 ui-monospace,Menlo,monospace;color:#f5f5f8cc">{{ camNote }}</div>
+
+            <sc-if value="{{ reviewing }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute;inset:0;background:#1d2d3d;display:flex;flex-direction:column;animation:pbrise 200ms ease-out">
+                {{ reviewImg }}
+                <div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:13.6px 20.4px;background:linear-gradient(#1d2d3de6,#1d2d3d00)">
+                  <span style="font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#1d2d3d;background:#94bce3;padding:6px 9px;text-transform:uppercase">Proof {{ reviewNum }}</span>
+                  <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#f5f5f8;text-transform:uppercase">{{ reviewOf }}</span>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="padding:13.6px 17px;display:flex;flex-direction:column;gap:13.6px">
+            <div style="display:flex;gap:6.8px;justify-content:center">
+              <sc-for list="{{ slots }}" as="slot" hint-placeholder-count="4">
+                <div style="position:relative;flex:1;aspect-ratio:4/3;border:1px solid {{ slot.borderDark }};background:{{ slot.bgDark }};overflow:hidden">
+                  {{ slot.img }}
+                  <span style="position:absolute;left:4px;bottom:3px;font:400 8px/1 ui-monospace,monospace;color:#f5f5f8bb">{{ slot.num }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ notReviewing }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:13.6px">
+                <span style="flex:1;font:400 11px/1.35 'Barlow',sans-serif;color:#9ebbd8">{{ lastLog }}</span>
+                <button onClick="{{ runSequence }}" disabled="{{ shooting }}" style="min-height:56px;min-width:150px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:.12em;text-transform:uppercase;padding:17px 20px;background:#f5f5f8;color:#1d2d3d;border:1px solid #f5f5f8;border-radius:0;opacity:{{ shootBtnOpacity }}" style-active="background:#94bce3;border-color:#94bce3">{{ shootLabel }}</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ reviewing }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;gap:8px">
+                  <button onClick="{{ rejectFrame }}" style="flex:1;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:.12em;text-transform:uppercase;padding:17px;background:transparent;color:#f5f5f8;border:1px solid #f5f5f866;border-radius:0" style-active="background:#f5f5f81a">Shoot again</button>
+                  <button onClick="{{ acceptFrame }}" style="flex:1.4;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:.12em;text-transform:uppercase;padding:17px;background:#94bce3;color:#1d2d3d;border:1px solid #94bce3;border-radius:0" style-active="background:#f5f5f8;border-color:#f5f5f8">{{ acceptLabel }}</button>
+                </div>
+                <span style="font:400 10px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:#9ebbd8;text-transform:uppercase;text-align:center">{{ lastLog }}</span>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;background:#f2f2f3">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10.2px;padding:10.2px 17px;border-bottom:1px solid #1d1f2029">
+            <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#416180;text-transform:uppercase">proof · strip {{ stripNo }}</span>
+            <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#5d5d60;text-transform:uppercase">{{ layoutLabel }}</span>
+          </div>
+
+          <div style="flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column">
+            <div style="padding:20.4px;display:flex;justify-content:center;background:#e9e9ea66;border-bottom:1px solid #1d1f2029">
+              <div style="position:relative;animation:pbrise 260ms ease-out">
+                <i style="position:absolute;top:-9px;left:-7px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                <i style="position:absolute;top:-9px;right:-7px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                <i style="position:absolute;bottom:-9px;left:-7px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                <i style="position:absolute;bottom:-9px;right:-7px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                <div style="display:flex;flex-direction:column;gap:8px;padding:12px;width:{{ stripWidth }};background:{{ frameBg }};box-shadow:0 10px 28px #2b2b2d26">
+                  <div style="display:{{ stripDisplay }};grid-template-columns:repeat(2,1fr);flex-direction:column;gap:8px">
+                    <sc-for list="{{ cells }}" as="cell" hint-placeholder-count="4">
+                      <div style="position:relative;aspect-ratio:{{ cellRatio }};overflow:hidden;background:#1d2d3d">
+                        {{ cell.img }}
+                        <div style="position:absolute;inset:0;background:#b5d9fd;mix-blend-mode:multiply;opacity:{{ duoOpacity }};pointer-events:none"></div>
+                        <button onClick="{{ cell.retake }}" style="position:absolute;right:4px;top:4px;min-height:32px;font:600 9px/1 ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;padding:6px 8px;background:#f5f5f8dd;color:#1d1f20;border:1px solid #1d1f2033;border-radius:0" style-active="background:#5980a6;color:#f5f5f8">Retake {{ cell.num }}</button>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-top:5px;border-top:1px solid {{ frameRule }}">
+                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:{{ frameFg }}">{{ brand }}</span>
+                    <span style="font:400 8px/1 ui-monospace,monospace;letter-spacing:.06em;color:{{ frameFgDim }}">{{ dateStamp }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="padding:13.6px 17px 6.8px;display:flex;flex-direction:column;gap:8px">
+              <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#416180;text-transform:uppercase">layout</span>
+              <div style="display:flex;border:1px solid #1d1f2029">
+                <button onClick="{{ pickStrip }}" style="flex:1;min-height:44px;padding:12px;border:0;border-right:1px solid #1d1f2029;border-radius:0;background:{{ stripPillBg }};color:{{ stripPillFg }};font:500 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase">Vertical strip</button>
+                <button onClick="{{ pickGrid }}" style="flex:1;min-height:44px;padding:12px;border:0;border-radius:0;background:{{ gridPillBg }};color:{{ gridPillFg }};font:500 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase">2 × 2 grid</button>
+              </div>
+            </div>
+
+            <div style="padding:6.8px 0 6.8px;display:flex;flex-direction:column;gap:8px">
+              <span style="padding:0 17px;font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#416180;text-transform:uppercase">film treatment</span>
+              <div style="display:flex;gap:6.8px;overflow-x:auto;padding:0 17px 3.4px;scroll-snap-type:x mandatory">
+                <sc-for list="{{ filterOpts }}" as="opt" hint-placeholder-count="5">
+                  <button onClick="{{ opt.pick }}" style="flex:0 0 auto;scroll-snap-align:start;min-height:44px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:9px 13.6px;border:1px solid {{ opt.border }};background:{{ opt.pillBg }};color:{{ opt.fg }};border-radius:0;text-align:left" style-active="border-color:#5980a6">
+                    <span style="font:500 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase">{{ opt.label }}</span>
+                    <span style="font:400 9px/1 ui-monospace,monospace;opacity:.6">{{ opt.code }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="padding:6.8px 0 17px;display:flex;flex-direction:column;gap:8px">
+              <span style="padding:0 17px;font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#416180;text-transform:uppercase">frame colour</span>
+              <div style="display:flex;gap:6.8px;overflow-x:auto;padding:0 17px 3.4px">
+                <sc-for list="{{ frameOpts }}" as="opt" hint-placeholder-count="4">
+                  <button onClick="{{ opt.pick }}" style="flex:0 0 auto;min-height:44px;display:flex;align-items:center;gap:8px;padding:11px 13.6px;border:1px solid {{ opt.border }};background:{{ opt.pillBg }};color:#1d1f20;border-radius:0;font:500 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase" style-active="border-color:#5980a6">
+                    <span style="width:14px;height:14px;background:{{ opt.swatch }};border:1px solid #1d1f2033;display:block"></span>{{ opt.label }}
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:13.6px 17px;border-top:1px solid #1d1f2029;background:#f2f2f3;display:flex;flex-direction:column;gap:6.8px">
+            <div style="display:flex;gap:8px">
+              <button onClick="{{ startSession }}" style="min-height:56px;min-width:56px;padding:17px 15px;border:1px solid #1d1f2029;background:transparent;color:#1d1f20;border-radius:0;font:500 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase" style-active="background:#eef6ff;border-color:#5980a6">Reshoot</button>
+              <button onClick="{{ download }}" style="flex:1;min-height:56px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;letter-spacing:.12em;text-transform:uppercase;padding:17px;background:#5980a6;color:#f5f5f8;border:1px solid #5980a6;border-radius:0" style-active="background:#416180;border-color:#416180">Save PNG</button>
+            </div>
+            <span style="font:400 10px/1.3 ui-monospace,Menlo,monospace;color:#5d5d60;text-transform:uppercase;letter-spacing:.08em;text-align:center">{{ saveNote }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isGallery }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;min-height:0;background:#f2f2f3">
+          <div style="padding:20.4px 17px 13.6px;display:flex;flex-direction:column;gap:5px;border-bottom:1px solid #1d1f2029">
+            <span style="font:400 10px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:#416180;text-transform:uppercase">archive · on this device</span>
+            <h2 style="margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:36px;line-height:1;text-transform:uppercase">Past strips</h2>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto;padding:17px">
+            <sc-if value="{{ galleryEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="border:1px dashed #1d1f2033;padding:34px 20.4px;display:flex;flex-direction:column;align-items:center;gap:8px;background:repeating-linear-gradient(45deg,#e9e9ea,#e9e9ea 6px,#f2f2f3 6px,#f2f2f3 12px)">
+                <span style="font:400 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#5d5d60;text-transform:uppercase">no strips on file</span>
+                <p style="margin:0;font-size:14px;color:#424244;text-align:center">Strips you save are archived here.</p>
+              </div>
+            </sc-if>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:13.6px">
+              <sc-for list="{{ gallery }}" as="item" hint-placeholder-count="4">
+                <div style="position:relative;border:1px solid #1d1f2029;padding:10.2px;display:flex;flex-direction:column;gap:8px;background:#f2f2f3">
+                  <i style="position:absolute;top:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;top:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;left:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  <i style="position:absolute;bottom:-7px;right:-5px;font:normal 12px/1 ui-monospace,monospace;color:#5980a6">+</i>
+                  {{ item.img }}
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+                    <span style="font:400 9px/1 ui-monospace,Menlo,monospace;color:#5d5d60">{{ item.stamp }}</span>
+                    <a href="{{ item.src }}" download="{{ item.file }}" style="min-height:32px;display:flex;align-items:center;font:600 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#416180">Save</a>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+        <nav style="display:flex;border-top:1px solid #1d1f2029;background:#f2f2f3">
+          <button onClick="{{ goHome }}" style="flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;border:0;border-right:1px solid #1d1f2029;border-radius:0;background:{{ tabHomeBg }};color:{{ tabHomeFg }}">
+            <span style="font:400 12px/1 ui-monospace,Menlo,monospace">▣</span>
+            <span style="font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase">Booth</span>
+          </button>
+          <button onClick="{{ startSession }}" style="flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;border:0;border-right:1px solid #1d1f2029;border-radius:0;background:#5980a6;color:#f5f5f8">
+            <span style="font:400 12px/1 ui-monospace,Menlo,monospace">●</span>
+            <span style="font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase">Shoot</span>
+          </button>
+          <button onClick="{{ goGallery }}" style="flex:1;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;border:0;border-radius:0;background:{{ tabGalBg }};color:{{ tabGalFg }}">
+            <span style="font:400 12px/1 ui-monospace,Menlo,monospace">▤</span>
+            <span style="font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;text-transform:uppercase">Strips {{ galleryCount }}</span>
+          </button>
+        </nav>
+      </sc-if>
+    </div>
+  </x-import>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:1010},&quot;frames&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:2,&quot;max&quot;:8,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Session&quot;},&quot;brand&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Fourframe&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Session&quot;}}">
+const FRAME_BG = {
+  paper: { bg: '#f5f5f8', fg: '#1d1f20', dim: '#5d5d60', rule: '#1d1f2029', label: 'Paper' },
+  steel: { bg: '#2c455d', fg: '#f5f5f8', dim: '#b5d9fd', rule: '#f5f5f833', label: 'Steel' },
+  ink: { bg: '#1d1f20', fg: '#f5f5f8', dim: '#98989b', rule: '#f5f5f826', label: 'Ink' },
+  sky: { bg: '#d6ebff', fg: '#1d2d3d', dim: '#416180', rule: '#1d2d3d29', label: 'Sky' }
+};
+const FILTERS = {
+  none: { label: 'None', code: 'F00', css: 'none', duo: 0 },
+  bw: { label: 'Black & white', code: 'F01', css: 'grayscale(1) contrast(1.12)', duo: 0 },
+  sepia: { label: 'Sepia', code: 'F02', css: 'sepia(.72) contrast(1.05) saturate(1.1)', duo: 0 },
+  warm: { label: 'Warm', code: 'F03', css: 'saturate(1.25) contrast(1.05) brightness(1.05) hue-rotate(-8deg)', duo: 0 },
+  duo: { label: 'Steel duotone', code: 'F04', css: 'grayscale(1) contrast(1.06) brightness(1.06)', duo: 0.85 }
+};
+
+class Component extends DCLogic {
+  state = {
+    screen: 'landing', variant: 'a', shots: [], countdown: '', shooting: false,
+    cam: 'idle', flash: false, frame: 'paper', filter: 'bw', layout: 'strip',
+    retakeIdx: null, gallery: [], log: [], saved: false, stripNo: 1, review: null
+  };
+  videoRef = React.createRef();
+  timers = [];
+  queue = [];
+
+  get frames() { return Math.max(2, Math.min(8, this.props.frames ?? 4)); }
+  get brand() { return this.props.brand ?? 'Fourframe'; }
+
+  componentDidMount() {
+    let g = [];
+    try { g = JSON.parse(localStorage.getItem('pb_strips_v1') || '[]'); } catch (e) {}
+    this.setState({ gallery: g, stripNo: g.length + 1 });
+  }
+  componentWillUnmount() { this.stopCam(); this.timers.forEach(clearTimeout); }
+
+  wait(ms) { return new Promise(r => this.timers.push(setTimeout(r, ms))); }
+  log(text) { this.setState(s => ({ log: [...s.log, text] })); }
+
+  async startCam() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.setState({ cam: 'denied' }); this.log('No camera API — placeholder frames armed.'); return;
+    }
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+      this.stream = s;
+      const v = this.videoRef.current;
+      if (v) { v.srcObject = s; try { await v.play(); } catch (e) {} }
+      this.setState({ cam: 'live' });
+      this.log('Front camera live · tap shoot when ready.');
+    } catch (e) {
+      this.setState({ cam: 'denied' });
+      this.log('Camera unavailable — placeholder frames armed.');
+    }
+  }
+  stopCam() { if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; } }
+
+  grab(i) {
+    const W = 1200, H = 900;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    const v = this.videoRef.current;
+    if (this.state.cam === 'live' && v && v.videoWidth) {
+      const vw = v.videoWidth, vh = v.videoHeight, target = W / H;
+      let sw = vw, sh = vw / target;
+      if (sh > vh) { sh = vh; sw = vh * target; }
+      ctx.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, W, H);
+    } else {
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, '#dfe7f0'); g.addColorStop(1, '#eef6ff');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = '#b5d9fd'; ctx.lineWidth = 14;
+      for (let x = -H; x < W; x += 46) { ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x + H, 0); ctx.stroke(); }
+      ctx.save();
+      ctx.translate(W, 0); ctx.scale(-1, 1);
+      ctx.fillStyle = '#416180';
+      ctx.font = '600 46px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('FRAME 0' + (i + 1) + ' · NO CAMERA', W / 2, H / 2);
+      ctx.restore();
+    }
+    return c.toDataURL('image/jpeg', 0.92);
+  }
+
+  goHome = () => { this.stopCam(); this.queue = []; this.setState({ screen: 'landing', shooting: false, countdown: '', cam: 'idle', review: null }); };
+  goGallery = () => { this.stopCam(); this.queue = []; this.setState({ screen: 'gallery', shooting: false, countdown: '', cam: 'idle', review: null }); };
+  startSession = () => {
+    this.queue = [];
+    this.setState({ screen: 'capture', shots: [], retakeIdx: null, log: [], saved: false, countdown: '', review: null }, () => {
+      this.log('Session opened · ' + this.frames + ' exposures queued.');
+      this.startCam();
+    });
+  };
+  retake = (i) => () => {
+    this.setState({ screen: 'capture', retakeIdx: i, saved: false }, () => {
+      this.log('Retake queued for frame 0' + (i + 1) + '.');
+      if (this.state.cam !== 'live') this.startCam();
+    });
+  };
+
+  runSequence = () => {
+    if (this.state.shooting || this.state.review) return;
+    const single = this.state.retakeIdx;
+    this.queue = single === null ? Array.from({ length: this.frames }, (_, i) => i) : [single];
+    this.shootNext();
+  };
+
+  shootNext = async () => {
+    const i = this.queue[0];
+    this.setState({ shooting: true });
+    for (const n of [3, 2, 1]) { this.setState({ countdown: String(n) }); await this.wait(760); }
+    this.setState({ countdown: '', flash: true });
+    const src = this.grab(i);
+    await this.wait(180);
+    this.setState({ flash: false, shooting: false, review: { idx: i, src } });
+    this.log('Frame 0' + (i + 1) + ' exposed · keep it?');
+  };
+
+  acceptFrame = async () => {
+    const r = this.state.review;
+    if (!r) return;
+    this.setState(s => { const shots = s.shots.slice(); shots[r.idx] = r.src; return { shots, review: null }; });
+    this.log('Frame 0' + (r.idx + 1) + ' accepted.');
+    this.queue = this.queue.slice(1);
+    if (this.queue.length) { await this.wait(420); this.shootNext(); return; }
+    await this.wait(260);
+    this.stopCam();
+    this.setState({ screen: 'preview', retakeIdx: null, cam: 'idle' });
+  };
+
+  rejectFrame = async () => {
+    const r = this.state.review;
+    if (!r) return;
+    this.setState({ review: null });
+    this.log('Frame 0' + (r.idx + 1) + ' discarded · shooting again.');
+    await this.wait(320);
+    this.shootNext();
+  };
+
+  loadImg(src) { return new Promise(res => { const im = new Image(); im.onload = () => res(im); im.src = src; }); }
+
+  async compose() {
+    const { shots, layout, frame, filter } = this.state;
+    const f = FRAME_BG[frame], fl = FILTERS[filter];
+    const S = 2, W = 320, pad = 16, gap = 10, footer = 30;
+    const cols = layout === 'grid' ? 2 : 1;
+    const pw = cols === 1 ? W : (W - gap) / 2;
+    const ph = cols === 1 ? pw * 0.75 : pw;
+    const rows = Math.ceil(this.frames / cols);
+    const H = pad * 2 + rows * ph + (rows - 1) * gap + footer;
+    const c = document.createElement('canvas');
+    c.width = (W + pad * 2) * S; c.height = H * S;
+    const ctx = c.getContext('2d');
+    ctx.scale(S, S);
+    ctx.fillStyle = f.bg; ctx.fillRect(0, 0, W + pad * 2, H);
+    for (let i = 0; i < this.frames; i++) {
+      const r = Math.floor(i / cols), cc = i % cols;
+      const x = pad + cc * (pw + gap), y = pad + r * (ph + gap);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, pw, ph); ctx.clip();
+      ctx.fillStyle = '#1d2d3d'; ctx.fillRect(x, y, pw, ph);
+      if (shots[i]) {
+        const im = await this.loadImg(shots[i]);
+        const target = pw / ph;
+        let sw = im.width, sh = im.width / target;
+        if (sh > im.height) { sh = im.height; sw = im.height * target; }
+        ctx.filter = fl.css === 'none' ? 'none' : fl.css;
+        ctx.translate(x + pw, y); ctx.scale(-1, 1);
+        ctx.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, 0, 0, pw, ph);
+        ctx.filter = 'none';
+        ctx.setTransform(S, 0, 0, S, 0, 0);
+        if (fl.duo) {
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.globalAlpha = fl.duo;
+          ctx.fillStyle = '#b5d9fd'; ctx.fillRect(x, y, pw, ph);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
+      ctx.restore();
+    }
+    const fy = H - footer + 14;
+    ctx.strokeStyle = f.rule.slice(0, 7); ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.moveTo(pad, fy - 8); ctx.lineTo(W + pad, fy - 8); ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = f.fg;
+    ctx.textAlign = 'left';
+    ctx.font = "600 13px 'Barlow Condensed', system-ui, sans-serif";
+    ctx.fillText(this.brand.toUpperCase(), pad, fy + 6);
+    ctx.fillStyle = f.dim;
+    ctx.textAlign = 'right';
+    ctx.font = '400 9px ui-monospace, Menlo, monospace';
+    ctx.fillText(this.dateStamp(), W + pad, fy + 5);
+    return c.toDataURL('image/png');
+  }
+
+  dateStamp() {
+    return new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase();
+  }
+
+  download = async () => {
+    const url = await this.compose();
+    const file = 'strip-' + Date.now() + '.png';
+    const a = document.createElement('a');
+    a.href = url; a.download = file; a.click();
+    const item = { src: url, stamp: this.dateStamp() + ' · ' + FILTERS[this.state.filter].code, file };
+    const gallery = [item, ...this.state.gallery].slice(0, 12);
+    this.setState({ gallery, saved: true, stripNo: gallery.length + 1 });
+    try { localStorage.setItem('pb_strips_v1', JSON.stringify(gallery)); } catch (e) {}
+  };
+
+  renderVals() {
+    const s = this.state;
+    const f = FRAME_BG[s.frame], fl = FILTERS[s.filter];
+    const count = this.frames;
+    const shotCount = s.shots.filter(Boolean).length;
+    const dark = s.screen === 'capture' || (s.screen === 'landing' && s.variant === 'b');
+
+    const img = (src, extra) => src ? React.createElement('img', {
+      src, alt: '',
+      style: Object.assign({ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: 'block' }, extra || {})
+    }) : null;
+
+    const slots = Array.from({ length: count }, (_, i) => ({
+      num: '0' + (i + 1),
+      img: img(s.shots[i]),
+      bgDark: s.shots[i] ? '#1d2d3d' : '#f5f5f814',
+      borderDark: s.shots[i] ? '#94bce3' : '#f5f5f833'
+    }));
+
+    const cells = Array.from({ length: count }, (_, i) => ({
+      num: '0' + (i + 1), img: img(s.shots[i], { filter: fl.css }), retake: this.retake(i)
+    }));
+
+    const frameOpts = Object.keys(FRAME_BG).map(k => ({
+      label: FRAME_BG[k].label, swatch: FRAME_BG[k].bg,
+      pillBg: s.frame === k ? '#eef6ff' : 'transparent',
+      border: s.frame === k ? '#5980a6' : '#1d1f2029',
+      pick: () => this.setState({ frame: k, saved: false })
+    }));
+    const filterOpts = Object.keys(FILTERS).map(k => {
+      const on = s.filter === k;
+      return {
+        label: FILTERS[k].label, code: FILTERS[k].code,
+        pillBg: on ? '#5980a6' : 'transparent', fg: on ? '#f5f5f8' : '#1d1f20',
+        border: on ? '#5980a6' : '#1d1f2029',
+        pick: () => this.setState({ filter: k, saved: false })
+      };
+    });
+
+    const variantNotes = {
+      a: 'Spec sheet — stacked type over a drawn strip.',
+      b: 'Steel field — one instruction, huge type.',
+      c: 'Procedure list — four numbered steps.'
+    };
+
+    return {
+      brand: this.brand.toUpperCase(),
+      frameCount: String(count),
+      galleryCount: String(s.gallery.length).padStart(2, '0'),
+      isLanding: s.screen === 'landing', isCapture: s.screen === 'capture',
+      isPreview: s.screen === 'preview', isGallery: s.screen === 'gallery',
+      showTabs: s.screen !== 'capture',
+      deviceDark: dark, screenBg: dark ? '#1d2d3d' : '#f2f2f3',
+      viewfinderBg: '#1d2d3d',
+      isA: s.variant === 'a', isB: s.variant === 'b', isC: s.variant === 'c',
+      setVarA: () => this.setState({ variant: 'a' }), setVarB: () => this.setState({ variant: 'b' }), setVarC: () => this.setState({ variant: 'c' }),
+      vaBg: s.variant === 'a' ? '#5980a6' : 'transparent', vaFg: s.variant === 'a' ? '#f5f5f8' : '#1d1f20',
+      vbBg: s.variant === 'b' ? '#5980a6' : 'transparent', vbFg: s.variant === 'b' ? '#f5f5f8' : '#1d1f20',
+      vcBg: s.variant === 'c' ? '#5980a6' : 'transparent', vcFg: s.variant === 'c' ? '#f5f5f8' : '#1d1f20',
+      variantNote: variantNotes[s.variant],
+      startSession: this.startSession, goHome: this.goHome, goGallery: this.goGallery,
+      tabHomeBg: s.screen === 'landing' ? '#eef6ff' : 'transparent', tabHomeFg: s.screen === 'landing' ? '#2c455d' : '#5d5d60',
+      tabGalBg: s.screen === 'gallery' ? '#eef6ff' : 'transparent', tabGalFg: s.screen === 'gallery' ? '#2c455d' : '#5d5d60',
+      videoRef: this.videoRef,
+      countdown: s.countdown, countOpacity: s.countdown ? 1 : 0,
+      flashOpacity: s.flash ? 0.92 : 0,
+      shooting: s.shooting, shootBtnOpacity: s.shooting ? 0.45 : 1,
+      shootLabel: s.shooting ? 'Exposing…' : (s.retakeIdx !== null ? 'Shoot 0' + (s.retakeIdx + 1) : 'Shoot ' + count),
+      runSequence: this.runSequence,
+      captureLabel: s.retakeIdx !== null ? 'retake · frame 0' + (s.retakeIdx + 1) : 'exposure ' + String(Math.min(shotCount + 1, count)).padStart(2, '0') + ' / ' + String(count).padStart(2, '0'),
+      camLabel: s.cam === 'live' ? 'front camera live' : (s.cam === 'denied' ? 'placeholder mode' : 'connecting…'),
+      camNote: s.cam === 'live' ? 'MIRRORED · 4:3' : 'NO SIGNAL',
+      recLabel: s.shooting ? '● REC' : '○ IDLE',
+      slots,
+      reviewing: !!s.review,
+      notReviewing: !s.review,
+      reviewImg: s.review ? img(s.review.src, { flex: 1, minHeight: 0 }) : null,
+      reviewNum: s.review ? '0' + (s.review.idx + 1) : '',
+      reviewOf: s.review ? 'frame ' + ('0' + (s.review.idx + 1)) + ' of ' + String(count).padStart(2, '0') + ' · your call' : '',
+      acceptLabel: s.review && this.queue.length > 1 ? 'Keep · next' : 'Keep',
+      acceptFrame: this.acceptFrame, rejectFrame: this.rejectFrame,
+      lastLog: s.log.length ? s.log[s.log.length - 1] : '',
+      cells,
+      cellRatio: s.layout === 'grid' ? '1 / 1' : '4 / 3',
+      stripDisplay: s.layout === 'grid' ? 'grid' : 'flex',
+      stripWidth: s.layout === 'grid' ? '260px' : '176px',
+      cssFilter: fl.css, duoOpacity: fl.duo,
+      frameBg: f.bg, frameFg: f.fg, frameFgDim: f.dim, frameRule: f.rule,
+      dateStamp: this.dateStamp(),
+      stripNo: String(s.stripNo).padStart(3, '0'),
+      layoutLabel: (s.layout === 'grid' ? '2 × 2 · ' : 'strip · ') + fl.code,
+      frameOpts, filterOpts,
+      pickStrip: () => this.setState({ layout: 'strip', saved: false }),
+      pickGrid: () => this.setState({ layout: 'grid', saved: false }),
+      stripPillBg: s.layout === 'strip' ? '#5980a6' : 'transparent', stripPillFg: s.layout === 'strip' ? '#f5f5f8' : '#1d1f20',
+      gridPillBg: s.layout === 'grid' ? '#5980a6' : 'transparent', gridPillFg: s.layout === 'grid' ? '#f5f5f8' : '#1d1f20',
+      download: this.download,
+      saveNote: s.saved ? 'saved to photos · archived in strips' : 'saving also archives a copy in strips',
+      gallery: s.gallery.map(it => Object.assign({}, it, {
+        img: React.createElement('img', { src: it.src, alt: '', style: { width: '100%', display: 'block', background: '#e9e9ea' } })
+      })),
+      galleryEmpty: s.gallery.length === 0,
+      statusLine: s.screen === 'capture' ? 'exposures ' + shotCount + '/' + count : 'strips on file ' + s.gallery.length
+    };
+  }
+}
+
+</script>
+</body>
+</html>
