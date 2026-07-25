@@ -36,12 +36,11 @@ private class FakeCameraController(
     }
 
     override val lensFacing: StateFlow<LensFacing> = MutableStateFlow(LensFacing.Front)
-    override fun toggleLensFacing() {}
 
-    override val flashEnabled: StateFlow<Boolean> = MutableStateFlow(false)
-    override fun toggleFlash() {}
+    var shouldThrowOnCapture = false
 
     override suspend fun capturePhoto(): ByteArray {
+        if (shouldThrowOnCapture) error("simulated capture failure")
         captureCount++
         return byteArrayOf(captureCount.toByte())
     }
@@ -128,6 +127,44 @@ class CaptureViewModelTest {
         val review = viewModel.uiState.value.review
         assertTrue(review?.frame?.isPlaceholder == true)
         assertEquals(0, camera.captureCount, "placeholder frames must not call the real camera")
+    }
+
+    @Test
+    fun `retake arms the queue without auto-firing the countdown`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 3)
+        viewModel.onStartSession()
+        runCurrent()
+
+        viewModel.onRetake(1)
+        runCurrent()
+
+        // Armed (queue set) but not shooting - the user still has to tap the shutter,
+        // design/handoff/README.md line 183 ("the shutter reads SHOOT 0N").
+        assertEquals(listOf(1), viewModel.uiState.value.queue)
+        assertEquals(false, viewModel.uiState.value.shooting)
+        assertEquals(0, camera.captureCount, "onRetake must not capture until the shutter is actually tapped")
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+
+        assertEquals(1, viewModel.uiState.value.review?.index)
+        assertEquals(1, camera.captureCount)
+    }
+
+    @Test
+    fun `a capture failure falls back to a placeholder frame instead of crashing`() = runTest {
+        val camera = FakeCameraController().apply { shouldThrowOnCapture = true }
+        val viewModel = CaptureViewModel(camera, initialShotCount = 1)
+        viewModel.onStartSession()
+        runCurrent()
+        assertEquals(CameraState.Live, viewModel.uiState.value.cameraState)
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+
+        val review = viewModel.uiState.value.review
+        assertTrue(review?.frame?.isPlaceholder == true, "a thrown capturePhoto() should yield a placeholder frame, not propagate")
     }
 
     @Test

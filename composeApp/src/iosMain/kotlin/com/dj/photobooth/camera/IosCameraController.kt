@@ -28,15 +28,6 @@ class IosCameraController : CameraController {
 
     private val _lensFacing = MutableStateFlow(LensFacing.Front)
     override val lensFacing: StateFlow<LensFacing> = _lensFacing.asStateFlow()
-    override fun toggleLensFacing() {
-        _lensFacing.value = if (_lensFacing.value == LensFacing.Front) LensFacing.Back else LensFacing.Front
-    }
-
-    private val _flashEnabled = MutableStateFlow(false)
-    override val flashEnabled: StateFlow<Boolean> = _flashEnabled.asStateFlow()
-    override fun toggleFlash() {
-        _flashEnabled.value = !_flashEnabled.value
-    }
 
     override suspend fun capturePhoto(): ByteArray = ByteArray(0)
 }

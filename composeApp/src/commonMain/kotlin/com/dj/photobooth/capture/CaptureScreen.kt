@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.camera.CameraPreviewSurface
@@ -82,11 +83,14 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
             border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.HairlineOnDark),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
         ) {
-            Text("← EXIT", style = PhotoboothType.heading12)
+            // design/handoff/README.md line 98-99: weight 500 (Medium), not the shared
+            // heading12 token's 600 (SemiBold) - this button is the one 12px-heading
+            // exception, so it overrides via .copy() rather than changing heading12 itself.
+            Text("← EXIT", style = PhotoboothType.heading12.copy(fontWeight = FontWeight.Medium))
         }
 
         val exposureStatus = state.review?.let { "RETAKE · FRAME ${state.frameLabel(it.index)}" }
-            ?: "EXPOSURE ${state.frameLabel(state.queue.firstOrNull() ?: (state.acceptedCount).coerceAtMost(state.shotCount - 1))} / ${state.shotCount}"
+            ?: "EXPOSURE ${state.frameLabel(state.queue.firstOrNull() ?: (state.acceptedCount).coerceAtMost(state.shotCount - 1))} / ${state.shotCountLabel()}"
         Text(exposureStatus, style = PhotoboothType.meta10, color = PhotoboothColors.OnDarkAccent)
 
         val recStatus = if (state.shooting) "● REC" else "○ IDLE"
@@ -119,7 +123,7 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
         ) {
             Text(
                 text = state.countdown,
-                style = PhotoboothType.display64,
+                style = PhotoboothType.countdownDisplay,
                 color = PhotoboothColors.Paper,
             )
         }
@@ -130,7 +134,7 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
             exit = fadeOut(tween(120)),
             modifier = Modifier.fillMaxSize(),
         ) {
-            Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.Paper.copy(alpha = 0.92f)))
+            Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.FlashOverlay))
         }
 
         Text(
@@ -141,13 +145,13 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
                 CameraState.Idle -> "CONNECTING…"
             },
             style = PhotoboothType.meta10,
-            color = PhotoboothColors.Paper.copy(alpha = 0.8f),
+            color = PhotoboothColors.CaptionOnDark,
             modifier = Modifier.align(Alignment.BottomStart).padding(PhotoboothSpacing.lg),
         )
         Text(
             text = if (state.cameraState == CameraState.Live) "MIRRORED · 4:3" else "NO SIGNAL",
             style = PhotoboothType.meta10,
-            color = PhotoboothColors.Paper.copy(alpha = 0.8f),
+            color = PhotoboothColors.CaptionOnDark,
             modifier = Modifier.align(Alignment.BottomEnd).padding(PhotoboothSpacing.lg),
         )
 
@@ -167,7 +171,7 @@ private fun ProofOverlay(review: ReviewState, state: CaptureUiState) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PhotoboothColors.DarkSurface.copy(alpha = 0.9f))
+                .background(PhotoboothColors.ProofScrimApprox)
                 .padding(horizontal = PhotoboothSpacing.lgLarge, vertical = PhotoboothSpacing.mdLarge),
             horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -179,12 +183,12 @@ private fun ProofOverlay(review: ReviewState, state: CaptureUiState) {
             ) {
                 Text(
                     "PROOF ${state.frameLabel(review.index)}",
-                    style = PhotoboothType.meta11,
+                    style = PhotoboothType.metaChip11,
                     color = PhotoboothColors.DarkSurface,
                 )
             }
             Text(
-                "FRAME ${state.frameLabel(review.index)} OF ${state.shotCount} · YOUR CALL",
+                "FRAME ${state.frameLabel(review.index)} OF ${state.shotCountLabel()} · YOUR CALL",
                 style = PhotoboothType.meta10,
                 color = PhotoboothColors.Paper,
             )
@@ -212,7 +216,7 @@ private fun CaptureBottomBar(
                 OutlinedButton(
                     onClick = onShootAgain,
                     modifier = Modifier.weight(1f).height(56.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.Paper.copy(alpha = 0.4f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.GhostBorderOnDark),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
                 ) { Text("SHOOT AGAIN", style = PhotoboothType.heading18) }
 
@@ -226,6 +230,16 @@ private fun CaptureBottomBar(
                     ),
                 ) { Text(if (isLastFrame) "KEEP" else "KEEP · NEXT", style = PhotoboothType.heading18) }
             }
+            // design/handoff/README.md lines 125-126: "Below them, the log line as centred
+            // monospace 10px #9ebbd8" - missing entirely before this fix, so log messages
+            // like "Frame 02 discarded · shooting again." never reached the user in review.
+            Text(
+                state.log,
+                style = PhotoboothType.meta10,
+                color = PhotoboothColors.OnDarkSecondaryText,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         } else {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -246,7 +260,7 @@ private fun CaptureBottomBar(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PhotoboothColors.Paper,
                         contentColor = PhotoboothColors.DarkSurface,
-                        disabledContainerColor = PhotoboothColors.Paper.copy(alpha = 0.45f),
+                        disabledContainerColor = PhotoboothColors.DisabledOnDark,
                     ),
                 ) { Text(shutterLabel, style = PhotoboothType.heading18) }
             }
@@ -262,7 +276,7 @@ private fun ThumbnailRow(state: CaptureUiState) {
                 modifier = Modifier
                     .weight(1f)
                     .aspectRatio(4f / 3f)
-                    .background(if (frame != null) Color.Transparent else PhotoboothColors.Paper.copy(alpha = 0.08f))
+                    .background(if (frame != null) Color.Transparent else PhotoboothColors.ThumbnailEmptyFill)
                     .border(1.dp, if (frame != null) PhotoboothColors.OnDarkAccent else PhotoboothColors.HairlineOnDark),
                 contentAlignment = Alignment.BottomStart,
             ) {

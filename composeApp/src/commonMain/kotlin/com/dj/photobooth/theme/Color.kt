@@ -35,6 +35,16 @@ object PhotoboothColors {
     val HairlineOnDarkSubtle = Paper.copy(alpha = 0x26 / 255f)
     val HairlineOnDark = Paper.copy(alpha = 0x33 / 255f)
     val SurfaceWashTranslucent = SurfaceWash.copy(alpha = 0x66 / 255f)
+
+    // Capture-screen-specific alpha variants (design/handoff/README.md § 2) - named here so
+    // they follow the same token pattern as the hairlines above instead of being scattered
+    // as inline .copy(alpha = 0.xf) literals across CaptureScreen.kt.
+    val FlashOverlay = Paper.copy(alpha = 0.92f) // "Flash: full-cover #f5f5f8 at opacity .92"
+    val GhostBorderOnDark = Paper.copy(alpha = 0x66 / 255f) // SHOOT AGAIN border: "1px #f5f5f866"
+    val ThumbnailEmptyFill = Paper.copy(alpha = 0x14 / 255f) // empty thumbnail cell: "#f5f5f814"
+    val DisabledOnDark = Paper.copy(alpha = 0.45f) // "opacity .45 when disabled"
+    val CaptionOnDark = Paper.copy(alpha = 0.8f) // viewfinder corner captions - not a doc-specified exact value, a readable default
+    val ProofScrimApprox = DarkSurface.copy(alpha = 0.9f) // flat-alpha stand-in for the doc's linear-gradient(#1d2d3de6, #1d2d3d00) scrim - TODO(phase-2): real gradient once a Brush-based header is worth the complexity
 }
 
 // Frame-color presets (the strip/grid background choices on the Preview screen) are Phase 2

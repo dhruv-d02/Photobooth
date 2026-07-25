@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat
 import java.io.ByteArrayOutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +24,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * the actual camera *session* (Preview use case, bindToLifecycle) is set up in
  * [CameraPreviewSurface]'s AndroidView, which needs the LifecycleOwner/PreviewView that
  * only exist inside a Composable - this class just holds the shared [imageCapture]
- * reference both sides bind to, plus the front/back and flash toggles.
+ * reference both sides bind to, plus which camera to bind ([cameraSelector]).
  *
  * Must be constructed in MainActivity.onCreate BEFORE setContent(): registerForActivityResult
  * requires registration before the Activity reaches STARTED.
@@ -44,11 +46,11 @@ class AndroidCameraController(private val activity: ComponentActivity) : CameraC
         permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
+    // No mutator yet - design/handoff/README.md's Capture screen has no front/back toggle,
+    // so always Front (design: "the front camera fires N times"). Add a setter only once a
+    // real caller needs it (see CameraController.lensFacing's doc comment).
     private val _lensFacing = MutableStateFlow(LensFacing.Front)
     override val lensFacing: StateFlow<LensFacing> = _lensFacing.asStateFlow()
-    override fun toggleLensFacing() {
-        _lensFacing.value = if (_lensFacing.value == LensFacing.Front) LensFacing.Back else LensFacing.Front
-    }
 
     internal val cameraSelector: CameraSelector
         get() = if (_lensFacing.value == LensFacing.Front) {
@@ -57,24 +59,28 @@ class AndroidCameraController(private val activity: ComponentActivity) : CameraC
             CameraSelector.DEFAULT_BACK_CAMERA
         }
 
-    private val _flashEnabled = MutableStateFlow(false)
-    override val flashEnabled: StateFlow<Boolean> = _flashEnabled.asStateFlow()
-    override fun toggleFlash() {
-        _flashEnabled.value = !_flashEnabled.value
-        imageCapture.flashMode = if (_flashEnabled.value) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF
-    }
-
     override suspend fun capturePhoto(): ByteArray = suspendCancellableCoroutine { continuation ->
         imageCapture.takePicture(
-            ContextCompat.getMainExecutor(activity),
+            // A background executor, not Main: onCaptureSuccess below does a full-resolution
+            // decode + mirror + re-encode, which would otherwise block the UI thread on every
+            // single shutter press (this used to run on getMainExecutor()).
+            Dispatchers.IO.asExecutor(),
             object : ImageCapture.OnImageCapturedCallback() {
                 override fun onCaptureSuccess(image: ImageProxy) {
-                    val bytes = try {
-                        image.toMirroredJpegBytes()
-                    } finally {
-                        image.close()
+                    // Any failure here (including a null decode) must still resume the
+                    // continuation via resumeWithException, not throw past this callback -
+                    // an uncaught throw here would leave capturePhoto() suspended forever,
+                    // since CameraX has no way to route it to onError() after the fact.
+                    try {
+                        val bytes = try {
+                            image.toMirroredJpegBytes()
+                        } finally {
+                            image.close()
+                        }
+                        continuation.resume(bytes)
+                    } catch (e: Exception) {
+                        continuation.resumeWithException(e)
                     }
-                    continuation.resume(bytes)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -90,15 +96,29 @@ class AndroidCameraController(private val activity: ComponentActivity) : CameraC
 // buffer) - so the captured JPEG needs an explicit horizontal flip to match what the user
 // actually saw, per design/handoff/README.md § Capture geometry ("what the user saw is
 // what they get").
+//
+// TODO(commonMain): everything past the raw buffer read below is plain bitmap math (decode /
+// horizontal flip / re-encode) with no CameraX dependency - CLAUDE.md's commonMain-first
+// convention says this belongs in shared Kotlin, not androidMain. Left here for now rather
+// than pulling in the Skiko dependency mid-Phase-1; move it to a shared function (Skia-based,
+// same as the Phase 2 filter/compositor work) once that dependency is already in place,
+// instead of duplicating this flip logic again for IosCameraController in Phase 4.
 private fun ImageProxy.toMirroredJpegBytes(): ByteArray {
     val buffer = planes[0].buffer
     val bytes = ByteArray(buffer.remaining())
     buffer.get(bytes)
-    val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    val bitmap = requireNotNull(android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)) {
+        "Failed to decode captured JPEG (${bytes.size} bytes)"
+    }
     val matrix = android.graphics.Matrix().apply { postScale(-1f, 1f) }
     val mirrored = android.graphics.Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-    return ByteArrayOutputStream().use { stream ->
-        mirrored.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, stream)
-        stream.toByteArray()
+    try {
+        return ByteArrayOutputStream().use { stream ->
+            mirrored.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, stream)
+            stream.toByteArray()
+        }
+    } finally {
+        bitmap.recycle()
+        mirrored.recycle()
     }
 }

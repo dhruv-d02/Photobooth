@@ -20,11 +20,10 @@ interface CameraController {
     /** Triggers the platform permission prompt. Result surfaces via [hasCameraPermission]. */
     fun requestCameraPermission()
 
+    /** Which camera CameraPreviewSurface should bind. Read-only for now - design/handoff/
+     *  README.md's Capture screen has no front/back toggle control, so there's no mutator
+     *  here yet; add one only when a real caller (a UI control) needs it. */
     val lensFacing: StateFlow<LensFacing>
-    fun toggleLensFacing()
-
-    val flashEnabled: StateFlow<Boolean>
-    fun toggleFlash()
 
     /**
      * Captures one exposure and returns JPEG-encoded bytes, mirrored horizontally to match

@@ -18,7 +18,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Composable
 actual fun CameraPreviewSurface(controller: CameraController, modifier: Modifier) {
-    val android = controller as? AndroidCameraController ?: return
+    // AndroidCameraController is the only CameraController implementation on this target -
+    // failing loudly on a mismatch beats silently rendering a blank viewfinder with no clue
+    // why, if some other CameraController implementation (a test double, a decorator) ever
+    // reaches this Composable.
+    val android = controller as? AndroidCameraController
+        ?: error("CameraPreviewSurface (Android) requires an AndroidCameraController, got ${controller::class}")
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val lensFacing by android.lensFacing.collectAsState()

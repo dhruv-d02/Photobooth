@@ -1,7 +1,5 @@
 package com.dj.photobooth.capture
 
-import com.dj.photobooth.camera.LensFacing
-
 /**
  * One accepted (or in-review) exposure. JPEG bytes, mirrored - see
  * CameraController.capturePhoto. [isPlaceholder] frames (camera denied/unavailable) carry
@@ -40,13 +38,15 @@ data class CaptureUiState(
     val review: ReviewState? = null,
     val shooting: Boolean = false,
     val cameraState: CameraState = CameraState.Idle,
-    val lensFacing: LensFacing = LensFacing.Front,
-    val flashEnabled: Boolean = false,
     val log: String = "",
     val sessionComplete: Boolean = false,
 ) {
     /** Zero-padded 1-based frame count, e.g. "02" - the label format used throughout the design. */
     fun frameLabel(index: Int): String = (index + 1).toString().padStart(2, '0')
+
+    /** Zero-padded total, e.g. "04" - design/handoff/README.md always zero-pads both sides
+     *  of "EXPOSURE 01 / 04" and "FRAME 02 OF 04", not just the numerator. */
+    fun shotCountLabel(): String = shotCount.toString().padStart(2, '0')
 
     val acceptedCount: Int get() = frames.count { it != null }
 }
