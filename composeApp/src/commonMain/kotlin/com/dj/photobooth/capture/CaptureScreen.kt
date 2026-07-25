@@ -23,17 +23,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.camera.CameraPreviewSurface
+import com.dj.photobooth.compose.decodeJpegToImageBitmap
 import com.dj.photobooth.theme.PhotoboothColors
 import com.dj.photobooth.theme.PhotoboothSpacing
 import com.dj.photobooth.theme.PhotoboothType
 import com.dj.photobooth.ui.CornerTicks
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The Capture screen (design/handoff/README.md § 2): full-bleed dark steel screen, no
@@ -161,13 +168,38 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
     }
 }
 
+/**
+ * Decodes [frame]'s JPEG bytes off the main thread (Dispatchers.Default), so a full-
+ * resolution decode never blocks composition/animation the way the equivalent capture-time
+ * work used to before it was moved off Main in AndroidCameraController. Returns null while
+ * decoding is in flight or for placeholder frames (no real bytes to decode).
+ */
+@Composable
+private fun rememberDecodedFrame(frame: CaptureFrame?): ImageBitmap? {
+    val decoded by produceState<ImageBitmap?>(initialValue = null, frame) {
+        value = if (frame == null || frame.isPlaceholder) {
+            null
+        } else {
+            withContext(Dispatchers.Default) { decodeJpegToImageBitmap(frame.jpegBytes) }
+        }
+    }
+    return decoded
+}
+
 @Composable
 private fun ProofOverlay(review: ReviewState, state: CaptureUiState) {
+    val decoded = rememberDecodedFrame(review.frame)
     Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
-        // TODO(phase-2): draw the actual mirrored frame bitmap here once the shared
-        // decode/compositing path exists; placeholder frames render as text-only for now
-        // (see CaptureFrame.isPlaceholder), and real frames just show the proof chip on a
-        // solid ground until then.
+        if (decoded != null) {
+            androidx.compose.foundation.Image(
+                painter = BitmapPainter(decoded),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        // Placeholder frames (camera denied/unavailable) have no image to decode - the
+        // proof chip below is all they show, per CaptureFrame.isPlaceholder's contract.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -272,6 +304,7 @@ private fun CaptureBottomBar(
 private fun ThumbnailRow(state: CaptureUiState) {
     Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.sm), modifier = Modifier.fillMaxWidth()) {
         state.frames.forEachIndexed { index, frame ->
+            val decoded = rememberDecodedFrame(frame)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -280,8 +313,14 @@ private fun ThumbnailRow(state: CaptureUiState) {
                     .border(1.dp, if (frame != null) PhotoboothColors.OnDarkAccent else PhotoboothColors.HairlineOnDark),
                 contentAlignment = Alignment.BottomStart,
             ) {
-                // TODO(phase-2): render frame.jpegBytes as the mirrored thumbnail image once
-                // the shared decode path exists.
+                if (decoded != null) {
+                    androidx.compose.foundation.Image(
+                        painter = BitmapPainter(decoded),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
                 if (frame != null) {
                     Text(
                         state.frameLabel(index),

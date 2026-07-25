@@ -205,7 +205,7 @@ Capture at **1200×900 (4:3)**, mirrored horizontally end-to-end (preview, proof
 - Design units: content width 320, padding 16, gap 10, footer 30 (all ×2 on actual output).
 - Strip layout (1 column): each photo 320×240. Grid layout (2 columns): each photo 155×155.
 - Output height = 2·padding + rows·photoHeight + (rows−1)·gap + footer.
-- Draw order: fill frame-color background → draw each photo clipped + mirrored with the film treatment's `ColorMatrix` applied → for F04 only, overlay `#b5d9fd` at Multiply blend, 0.85 alpha → footer: 1px rule at 35% opacity, brand text left, date stamp right.
+- Draw order: fill frame-color background → draw each photo clipped (center-crop to the cell's aspect ratio) with the film treatment's `ColorMatrix` applied → for F04 only, overlay `#b5d9fd` at Multiply blend, 0.85 alpha → footer: 1px rule at 35% opacity, brand text left, date stamp right. **Not mirrored again here** — `CameraController.capturePhoto()` already returns mirrored bytes (Phase 1), so mirroring a second time at compositing would flip the image back to unmirrored. Mirror exactly once, at capture.
 - Frames held as JPEG ~0.92 quality between capture and export; final export is PNG.
 - Lands a vertical strip near 2×6 in at 300 dpi — intentionally matches a physical photobooth strip.
 

@@ -47,8 +47,5 @@ object PhotoboothColors {
     val ProofScrimApprox = DarkSurface.copy(alpha = 0.9f) // flat-alpha stand-in for the doc's linear-gradient(#1d2d3de6, #1d2d3d00) scrim - TODO(phase-2): real gradient once a Brush-based header is worth the complexity
 }
 
-// Frame-color presets (the strip/grid background choices on the Preview screen) are Phase 2
-// work per CLAUDE.md's build sequence, not Phase 0 scaffolding - deliberately not defined
-// here yet. Add a FrameColorPreset enum (Paper/Steel/Ink/Sky, per design/handoff/README.md's
-// Design Tokens § Frame options) when the Preview screen is actually built, using the color
-// tokens above.
+// Frame-color presets (Paper/Steel/Ink/Sky) now live in filter.FrameColorPreset, built on
+// top of the tokens above - a Phase 2 concern (the compositor), not a theme-module one.
