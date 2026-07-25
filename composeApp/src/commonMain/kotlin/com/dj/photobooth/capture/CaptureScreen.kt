@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,6 +55,10 @@ fun CaptureScreen(
     onExitToLanding: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
+    // Shared across every rememberDecodedFrame call site on this screen (see that function's
+    // doc comment) so the same accepted frame - visible in both the proof overlay and the
+    // thumbnail row - is decoded once, not twice.
+    val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
     Column(
         modifier = Modifier
@@ -63,7 +68,7 @@ fun CaptureScreen(
         CaptureTopBar(state = state, onExit = { viewModel.onExit(); onExitToLanding() })
 
         Box(modifier = Modifier.weight(1f)) {
-            Viewfinder(state = state, cameraController = cameraController)
+            Viewfinder(state = state, cameraController = cameraController, decodedFrameCache = decodedFrameCache)
         }
 
         CaptureBottomBar(
@@ -71,6 +76,7 @@ fun CaptureScreen(
             onShutter = viewModel::onShutter,
             onKeep = viewModel::onKeep,
             onShootAgain = viewModel::onShootAgain,
+            decodedFrameCache = decodedFrameCache,
         )
     }
 }
@@ -106,7 +112,11 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
 }
 
 @Composable
-private fun Viewfinder(state: CaptureUiState, cameraController: CameraController) {
+private fun Viewfinder(
+    state: CaptureUiState,
+    cameraController: CameraController,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreviewSurface(
             controller = cameraController,
@@ -163,7 +173,7 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
         )
 
         state.review?.let { review ->
-            ProofOverlay(review = review, state = state)
+            ProofOverlay(review = review, state = state, decodedFrameCache = decodedFrameCache)
         }
     }
 }
@@ -172,23 +182,45 @@ private fun Viewfinder(state: CaptureUiState, cameraController: CameraController
  * Decodes [frame]'s JPEG bytes off the main thread (Dispatchers.Default), so a full-
  * resolution decode never blocks composition/animation the way the equivalent capture-time
  * work used to before it was moved off Main in AndroidCameraController. Returns null while
- * decoding is in flight or for placeholder frames (no real bytes to decode).
+ * decoding is in flight (explicitly reset below - produceState's initialValue only applies
+ * on first composition, not on every key change, so without the reset a retake could show
+ * the *previous* frame's bitmap while the new one decodes) or for placeholder frames (no
+ * real bytes to decode) or if decoding fails (a corrupt/truncated JPEG throws rather than
+ * crashing the screen - the UI already has a well-defined "no image yet" rendering for this).
+ *
+ * [cache] is shared across every call site in this screen (ThumbnailRow and ProofOverlay both
+ * call this for the same CaptureFrame once it's kept) so a frame is decoded once, not twice -
+ * CaptureFrame's content-based equals/hashCode make it a safe, correct map key.
  */
 @Composable
-private fun rememberDecodedFrame(frame: CaptureFrame?): ImageBitmap? {
+private fun rememberDecodedFrame(
+    frame: CaptureFrame?,
+    cache: MutableMap<CaptureFrame, ImageBitmap>,
+): ImageBitmap? {
     val decoded by produceState<ImageBitmap?>(initialValue = null, frame) {
-        value = if (frame == null || frame.isPlaceholder) {
-            null
-        } else {
+        value = null
+        if (frame == null || frame.isPlaceholder) return@produceState
+        cache[frame]?.let { value = it; return@produceState }
+        val bitmap = try {
             withContext(Dispatchers.Default) { decodeJpegToImageBitmap(frame.jpegBytes) }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
         }
+        if (bitmap != null) cache[frame] = bitmap
+        value = bitmap
     }
     return decoded
 }
 
 @Composable
-private fun ProofOverlay(review: ReviewState, state: CaptureUiState) {
-    val decoded = rememberDecodedFrame(review.frame)
+private fun ProofOverlay(
+    review: ReviewState,
+    state: CaptureUiState,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
+    val decoded = rememberDecodedFrame(review.frame, decodedFrameCache)
     Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
         if (decoded != null) {
             androidx.compose.foundation.Image(
@@ -234,6 +266,7 @@ private fun CaptureBottomBar(
     onShutter: () -> Unit,
     onKeep: () -> Unit,
     onShootAgain: () -> Unit,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
 ) {
     Column(
         modifier = Modifier
@@ -241,7 +274,7 @@ private fun CaptureBottomBar(
             .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
         verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
     ) {
-        ThumbnailRow(state = state)
+        ThumbnailRow(state = state, decodedFrameCache = decodedFrameCache)
 
         if (state.review != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge)) {
@@ -301,10 +334,10 @@ private fun CaptureBottomBar(
 }
 
 @Composable
-private fun ThumbnailRow(state: CaptureUiState) {
+private fun ThumbnailRow(state: CaptureUiState, decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>) {
     Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.sm), modifier = Modifier.fillMaxWidth()) {
         state.frames.forEachIndexed { index, frame ->
-            val decoded = rememberDecodedFrame(frame)
+            val decoded = rememberDecodedFrame(frame, decodedFrameCache)
             Box(
                 modifier = Modifier
                     .weight(1f)

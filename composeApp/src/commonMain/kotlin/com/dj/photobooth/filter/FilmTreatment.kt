@@ -3,6 +3,7 @@ package com.dj.photobooth.filter
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorMatrix
 import com.dj.photobooth.filter.ColorMatrixOps.then
+import com.dj.photobooth.theme.PhotoboothColors
 
 /**
  * The 5 fixed film-treatment presets from design/handoff/README.md § "Film treatments (CSS
@@ -50,10 +51,12 @@ enum class FilmTreatment(
         colorMatrix = ColorMatrixOps.grayscale(1f)
             .then(ColorMatrixOps.contrast(1.06f))
             .then(ColorMatrixOps.brightness(1.06f)),
-        duotoneOverlay = Color(0xFFB5D9FD), // PhotoboothColors.AccentTintStrong - kept as a
-        // literal here rather than importing theme.PhotoboothColors, to keep the filter
-        // package independent of the theme package (filters are a domain/rendering concern,
-        // not a UI-theme one, even though this specific value happens to match a token).
+        // Was a hardcoded Color(0xFFB5D9FD) literal on the theory of keeping filter/
+        // independent of theme/ - but FrameColorPreset.kt (same package) already imports
+        // PhotoboothColors directly, so that independence didn't actually hold; referencing
+        // the real token here instead avoids the two silently drifting apart on a future
+        // design-token change.
+        duotoneOverlay = PhotoboothColors.AccentTintStrong,
         duotoneOverlayAlpha = 0.85f,
     ),
 }

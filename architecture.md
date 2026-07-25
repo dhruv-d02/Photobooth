@@ -209,6 +209,8 @@ Capture at **1200×900 (4:3)**, mirrored horizontally end-to-end (preview, proof
 - Frames held as JPEG ~0.92 quality between capture and export; final export is PNG.
 - Lands a vertical strip near 2×6 in at 300 dpi — intentionally matches a physical photobooth strip.
 
+**Implementation status (Phase 2):** `StripCompositor` implements background, photos-with-treatment, and the F04 duotone overlay in full. The footer **rule** (the 1px line) is implemented; the footer **text** (brand left, date stamp right) is not yet — it needs a `FontFamily.Resolver` to construct a `Paragraph` outside a `@Composable` context, its own small piece of platform plumbing, deferred to a follow-up rather than bundled into Phase 2. Don't assume composed output has footer text until that lands.
+
 ## Design system
 
 A dedicated Compose theme/token module is required before Phase 1 screens are built — the aesthetic is specific and consistent across every screen:
