@@ -144,8 +144,8 @@ Landing ships **variant 1a "Spec sheet"** only (light ground, drawn strip figure
 Photobooth/
   composeApp/
     src/
-      commonMain/   → screens, ViewModels, CountdownStateMachine, FilterEngine,
-                       StripCompositor, data models, repository interfaces, expect decls
+      commonMain/   → screens, ViewModels, SessionStateMachine, FilmTreatmentEngine,
+                       Compositor, data models, repository interfaces, expect decls
       androidMain/   → CameraX-based CameraController, MediaStore save, Android share
                        intent, Android permission requests
       iosMain/       → AVFoundation-based CameraController, Photos-framework save,
