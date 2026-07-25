@@ -227,6 +227,12 @@ A dedicated Compose theme/token module is required before Phase 1 screens are bu
 - **Performance**: capture-loop and Skia filter/composite work must run off the main thread (`Dispatchers.Default`/IO); generate downsampled thumbnails for the Gallery grid instead of loading full-res images.
 - **App name**: still undecided — keep it config-driven (`AppSettings.brand`), don't hardcode the design handoff's placeholder "Fourframe" as the real product name.
 
+## Build notes (Phase 0 scaffolding decisions)
+
+- **AGP 9 vs. the KMP plugin**: AGP 9.0+ deprecated applying `com.android.application` directly alongside `org.jetbrains.kotlin.multiplatform` in the same module (its long-term direction is a separate Android-application subproject depending on a KMP library subproject). Since the Kotlin Multiplatform and Compose Multiplatform Gradle plugins don't yet target that new structure, root `gradle.properties` sets `android.builtInKotlin=false` and `android.newDsl=false` — AGP's own documented escape hatch back to the pre-9.0 behavior those plugins expect. This has to live at the root, not scoped to `composeApp/` — AGP reads it before per-subproject properties take effect for this check (confirmed by trying the scoped version, which fails); a future non-KMP module would inherit the opt-out too, an accepted tradeoff. This currently only shows as a build warning, not an error — **but it is not indefinite**: AGP removes this opt-out entirely in AGP 10.0, targeted mid-2026 (i.e. imminently) per [Android's DSL/API migration timeline](https://developer.android.com/build/releases/gradle-plugin-roadmap). Before bumping AGP past 9.x, confirm the KMP/Compose Multiplatform plugins support the new DSL natively — don't just bump the version and discover the build breaks.
+- **No `iosX64` target**: Compose Multiplatform 1.11.1 doesn't publish artifacts for the Intel iOS simulator target. `composeApp` only declares `iosArm64` (device) and `iosSimulatorArm64` (Apple Silicon simulator) — together these cover every realistic dev setup.
+- **iosMain is unverified**: it compiles as Kotlin source but has never been built, since Kotlin/Native can only compile Apple targets on macOS (see the Mac blocker above). Treat it as unverified until Phase 4.
+
 ## v2 parking lot (explicitly deferred)
 
 Live face-tracking AR filters (ARKit/ARCore or a paid SDK like Banuba/DeepAR), cloud sync & accounts, multi-user shared event galleries, printing (AirPrint/Android PrintManager), boomerang/short video capture, monetization (ads/IAP/subscription).
