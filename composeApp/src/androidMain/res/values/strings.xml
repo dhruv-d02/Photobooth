@@ -1,0 +1,5 @@
+<resources>
+    <!-- Placeholder app name - the real product name is still undecided
+         (architecture.md § Non-functional considerations, App name). -->
+    <string name="app_name">Photobooth</string>
+</resources>

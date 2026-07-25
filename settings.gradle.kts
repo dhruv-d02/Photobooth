@@ -23,4 +23,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "PhotoBooth"
-include(":app")
+include(":composeApp")
