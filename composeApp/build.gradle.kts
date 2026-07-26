@@ -56,6 +56,9 @@ kotlin {
             // that only survives via `remember`.
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
+            // Navigation-Compose (multiplatform): NavHost/NavController for the
+            // Booth/Shoot/Strips tab graph - architecture.md's decided nav library.
+            implementation(libs.navigation.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

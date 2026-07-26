@@ -45,6 +45,10 @@ object PhotoboothColors {
     val DisabledOnDark = Paper.copy(alpha = 0.45f) // "opacity .45 when disabled"
     val CaptionOnDark = Paper.copy(alpha = 0.8f) // viewfinder corner captions - not a doc-specified exact value, a readable default
     val ProofScrimApprox = DarkSurface.copy(alpha = 0.9f) // flat-alpha stand-in for the doc's linear-gradient(#1d2d3de6, #1d2d3d00) scrim - TODO(phase-2): real gradient once a Brush-based header is worth the complexity
+
+    // Landing screen (design/handoff/README.md § 1, variant 1a): "a faint 27.2px grid
+    // (#1d1f2008 1px lines both axes)" drawn behind the whole light-ground screen.
+    val GridLineOnLight = TextPrimary.copy(alpha = 0x08 / 255f)
 }
 
 // Frame-color presets (Paper/Steel/Ink/Sky) now live in filter.FrameColorPreset, built on

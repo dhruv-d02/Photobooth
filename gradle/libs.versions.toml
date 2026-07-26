@@ -7,6 +7,10 @@ androidxCoreKtx = "1.19.0"
 androidxLifecycle = "2.9.5"
 cameraX = "1.5.1"
 kotlinxCoroutines = "1.10.2"
+# Navigation-Compose (multiplatform) - architecture.md's "Library choices and rationale"
+# table: the official Google/JetBrains-backed nav library, one common artifact for every
+# KMP target, chosen over Voyager/Decompose.
+navigationCompose = "2.9.2"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
@@ -27,6 +31,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

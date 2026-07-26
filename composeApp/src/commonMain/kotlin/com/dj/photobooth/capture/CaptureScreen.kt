@@ -21,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -47,18 +48,31 @@ import kotlinx.coroutines.withContext
  * The Capture screen (design/handoff/README.md § 2): full-bleed dark steel screen, no
  * bottom tab bar (a session is modal). Pure View in the MVVM sense - all state comes from
  * [viewModel]'s [CaptureUiState]; every tap just calls a ViewModel method.
+ *
+ * [onSessionComplete] fires once, with every accepted frame, the moment
+ * [CaptureUiState.sessionComplete] flips to true - i.e. right after the last queued frame is
+ * kept (see CaptureViewModel.processNextInQueue). It's how the NavHost (not built in this
+ * file) knows to transition from Capture to the Preview route once a session finishes;
+ * defaults to a no-op so existing call sites that don't care about this yet keep compiling.
  */
 @Composable
 fun CaptureScreen(
     viewModel: CaptureViewModel,
     cameraController: CameraController,
     onExitToLanding: () -> Unit,
+    onSessionComplete: (frames: List<CaptureFrame>) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     // Shared across every rememberDecodedFrame call site on this screen (see that function's
     // doc comment) so the same accepted frame - visible in both the proof overlay and the
     // thumbnail row - is decoded once, not twice.
     val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
+
+    LaunchedEffect(state.sessionComplete) {
+        if (state.sessionComplete) {
+            onSessionComplete(state.frames.filterNotNull())
+        }
+    }
 
     Column(
         modifier = Modifier
