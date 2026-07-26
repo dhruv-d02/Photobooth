@@ -19,14 +19,9 @@ package com.dj.photobooth.nav
  * only by finishing a Capture session or tapping a Strips gallery card - never from the tab bar
  * itself, so it deliberately has no [BottomTab] entry.
  *
- * [Preview] and [Strips] are wired to placeholder composables for now (see
- * `nav/placeholder/PlaceholderPreviewScreen.kt` and `nav/placeholder/PlaceholderGalleryScreen.kt`
- * - deliberately kept out of `preview`/`gallery` packages so they don't collide with the real
- * screens' package paths) - the real "Strip Preview & Customize" and "Past strips" screens are
- * Phase 3 scope being built in parallel on `feature/export-history`. Swapping a placeholder for
- * the real screen is a one-line change: replace the placeholder composable inside that route's
- * single `composable(...)` block in [com.dj.photobooth.nav.PhotoboothNavHost] - nothing else in
- * this file needs to change.
+ * [Preview] and [Strips] route to the real `StripPreviewScreen` (`com.dj.photobooth.preview`)
+ * and `GalleryScreen` (`com.dj.photobooth.gallery`) - see [com.dj.photobooth.nav.PhotoboothNavHost]
+ * for how their ViewModels are constructed.
  */
 sealed class Route(val route: String) {
     data object Booth : Route("booth")

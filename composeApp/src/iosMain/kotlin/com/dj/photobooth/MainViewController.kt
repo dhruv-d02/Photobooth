@@ -2,6 +2,10 @@ package com.dj.photobooth
 
 import androidx.compose.ui.window.ComposeUIViewController
 import com.dj.photobooth.camera.IosCameraController
+import com.dj.photobooth.export.IosMediaRepo
+import com.dj.photobooth.export.IosShareSheet
+import com.dj.photobooth.gallery.IosAppDatabaseFactory
+import com.dj.photobooth.gallery.RoomGalleryRepo
 import platform.UIKit.UIViewController
 
 // Mirrors MainActivity.kt's job on the other platform: host the shared App() composable
@@ -11,4 +15,11 @@ import platform.UIKit.UIViewController
 // or run from this (Windows) machine. It's included now purely so the commonMain code
 // already targets three source sets consistently, matching the module structure in
 // architecture.md, rather than iosMain being added later as an afterthought.
-fun MainViewController(): UIViewController = ComposeUIViewController { App(IosCameraController()) }
+fun MainViewController(): UIViewController = ComposeUIViewController {
+    App(
+        cameraController = IosCameraController(),
+        galleryRepo = RoomGalleryRepo(IosAppDatabaseFactory().create()),
+        mediaRepo = IosMediaRepo(),
+        shareSheet = IosShareSheet(),
+    )
+}

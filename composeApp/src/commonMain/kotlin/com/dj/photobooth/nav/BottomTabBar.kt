@@ -30,11 +30,9 @@ import com.dj.photobooth.theme.PhotoboothType
  * except Capture (a session is modal; see [PhotoboothNavHost] for the route-based
  * show/hide logic).
  *
- * [stripCount] is threaded through as a plain `Int` (default/placeholder `0` at the call
- * site in [PhotoboothNavHost]) rather than read from a real data source here - the
- * history/gallery data layer (Room) is being built on the parallel `feature/export-history`
- * branch and doesn't exist in this worktree yet. Wiring the real count is a later
- * integration step once that branch lands; this parameter is the seam for it.
+ * [stripCount] is threaded through as a plain `Int` rather than read from a data source
+ * directly here - [PhotoboothNavHost] collects the live, uncapped count from `GalleryRepo`
+ * and passes it down, keeping this composable itself free of a repo dependency.
  */
 @Composable
 fun BottomTabBar(
