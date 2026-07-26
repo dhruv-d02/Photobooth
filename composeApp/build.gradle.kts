@@ -77,6 +77,9 @@ kotlin {
             // README.md's "JUL 25, 2026" format) - kotlin.time has no locale-aware month-name
             // formatter, and hand-rolling one duplicates what this library already does well.
             implementation(libs.kotlinx.datetime)
+            // Navigation-Compose (multiplatform): NavHost/NavController for the
+            // Booth/Shoot/Strips tab graph - architecture.md's decided nav library.
+            implementation(libs.navigation.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
