@@ -68,6 +68,15 @@ fun CaptureScreen(
     // thumbnail row - is decoded once, not twice.
     val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
+    // Kicks off the session (permission request, then camera-live) the moment this screen
+    // appears - nothing else in production code ever calls onStartSession() (only tests do),
+    // so without this the camera permission dialog never fires and cameraState just sits at
+    // its Idle default forever. Keyed on viewModel, not Unit, so a fresh ViewModel instance
+    // (e.g. a new CaptureViewModel from re-entering Shoot) reliably starts its own session.
+    LaunchedEffect(viewModel) {
+        viewModel.onStartSession()
+    }
+
     LaunchedEffect(state.sessionComplete) {
         if (state.sessionComplete) {
             onSessionComplete(state.frames.filterNotNull())

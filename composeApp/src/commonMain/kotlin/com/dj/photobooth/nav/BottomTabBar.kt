@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,7 +43,14 @@ fun BottomTabBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            // A definite height, not heightIn(min = ...): inside Scaffold's bottomBar slot this
+            // Row receives a loose-but-large maxHeight constraint. Without a bound of its own,
+            // the cells' and divider's Modifier.fillMaxHeight() below fill *that* incoming
+            // constraint (effectively the whole screen) rather than the bar's own resolved
+            // size - that's the "tabs are full screen" bug. Content here (a glyph + one label
+            // line) never needs more than 56px, so a fixed height both satisfies the spec's
+            // "min-height 56px" and bounds fillMaxHeight() to something sane.
+            .height(56.dp)
             .background(PhotoboothColors.Paper)
             // 1px top border - drawn rather than Modifier.border() so it applies to only
             // the top edge, per the spec ("1px top border", not a full outline).
