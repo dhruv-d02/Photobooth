@@ -4,6 +4,13 @@
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
+    <!-- Phase 3 (export): only needed on API 26-28 - MediaStore scoped storage (API 29+,
+         see AndroidMediaRepo) needs no storage permission at all, per architecture.md's
+         "no broad storage permission needed on API 26+" (this repo's minSdk). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <!--
       No launcher icon is declared yet - the real app name/branding is still undecided
       (architecture.md § Non-functional considerations, App name). Adding a throwaway icon
