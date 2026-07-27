@@ -1,6 +1,7 @@
 package com.dj.photobooth.capture
 
 import com.dj.photobooth.camera.CameraController
+import com.dj.photobooth.camera.CameraError
 import com.dj.photobooth.camera.LensFacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -26,6 +27,7 @@ import kotlin.test.assertTrue
 private class FakeCameraController(
     granted: Boolean = true,
     private val autoGrantOnRequest: Boolean = true,
+    initialError: CameraError? = null,
 ) : CameraController {
     override val hasCameraPermission = MutableStateFlow(granted)
     var captureCount = 0
@@ -36,6 +38,11 @@ private class FakeCameraController(
     }
 
     override val lensFacing: StateFlow<LensFacing> = MutableStateFlow(LensFacing.Front)
+
+    /** Mutable so a test can simulate a bind failing *after* the session already started,
+     *  which is the real ordering: permission resolves first, the CameraX bind happens later
+     *  in the preview surface. */
+    override val cameraError = MutableStateFlow(initialError)
 
     var shouldThrowOnCapture = false
 
@@ -86,6 +93,46 @@ class CaptureViewModelTest {
         assertEquals(3, finalState.acceptedCount)
         assertNull(finalState.review)
         assertEquals(3, camera.captureCount)
+    }
+
+    @Test
+    fun `a camera that fails to bind arms placeholder mode instead of claiming live`() = runTest {
+        // Permission granted but the camera won't open - the emulator-with-no-front-lens and
+        // camera-held-by-another-app cases. Previously this reported "Front camera live" and
+        // then silently produced blank frames.
+        val camera = FakeCameraController(granted = true)
+        val viewModel = CaptureViewModel(camera, initialShotCount = 1)
+
+        viewModel.onStartSession()
+        runCurrent()
+        assertEquals(CameraState.Live, viewModel.uiState.value.cameraState, "live until a bind fails")
+
+        // The bind fails after the session started, as it does in reality.
+        camera.cameraError.value = CameraError.NoCameraAvailable
+        runCurrent()
+
+        assertEquals(CameraState.Unavailable, viewModel.uiState.value.cameraState)
+        assertTrue(viewModel.uiState.value.log.contains("placeholder", ignoreCase = true))
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        viewModel.onKeep()
+        advanceTimeBy(420 + 260)
+        runCurrent()
+
+        assertEquals(0, camera.captureCount, "an unusable camera must not be asked for pixels")
+        assertTrue(viewModel.uiState.value.frames.filterNotNull().all { it.isPlaceholder })
+    }
+
+    @Test
+    fun `a bind failure known before the session starts never reports live`() = runTest {
+        val camera = FakeCameraController(granted = true, initialError = CameraError.BindFailed)
+        val viewModel = CaptureViewModel(camera, initialShotCount = 1)
+
+        viewModel.onStartSession()
+        runCurrent()
+
+        assertEquals(CameraState.Unavailable, viewModel.uiState.value.cameraState)
     }
 
     @Test

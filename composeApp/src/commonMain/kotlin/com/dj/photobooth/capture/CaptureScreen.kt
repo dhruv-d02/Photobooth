@@ -183,7 +183,11 @@ private fun Viewfinder(
         Text(
             text = when (state.cameraState) {
                 CameraState.Live -> "FRONT CAMERA LIVE"
-                CameraState.Denied -> "PLACEHOLDER MODE"
+                // Both non-Live terminal states read as PLACEHOLDER MODE - the design's
+                // viewfinder caption vocabulary (design/handoff/README.md § 2) is only
+                // LIVE / PLACEHOLDER MODE / CONNECTING…, and from the user's point of view
+                // "you declined" and "the camera won't open" have the same consequence here.
+                CameraState.Denied, CameraState.Unavailable -> "PLACEHOLDER MODE"
                 CameraState.RequestingPermission -> "CONNECTING…"
                 CameraState.Idle -> "CONNECTING…"
             },

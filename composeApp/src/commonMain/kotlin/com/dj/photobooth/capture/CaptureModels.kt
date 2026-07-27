@@ -23,8 +23,16 @@ data class CaptureFrame(val jpegBytes: ByteArray, val isPlaceholder: Boolean = f
     override fun hashCode(): Int = 31 * jpegBytes.contentHashCode() + isPlaceholder.hashCode()
 }
 
-/** Whether the live camera is available, still being requested, or unavailable/denied. */
-enum class CameraState { Idle, RequestingPermission, Live, Denied }
+/**
+ * Whether the live camera is available, still being requested, or unusable.
+ *
+ * [Denied] and [Unavailable] both land the session in placeholder mode but mean different
+ * things: [Denied] is the user refusing permission (recoverable - they can grant it later),
+ * [Unavailable] is the camera itself failing to open despite permission being granted (see
+ * [com.dj.photobooth.camera.CameraError]). Keeping them apart matters because only [Denied]
+ * is worth re-prompting for.
+ */
+enum class CameraState { Idle, RequestingPermission, Live, Denied, Unavailable }
 
 /** The just-captured frame awaiting KEEP or SHOOT AGAIN, per design/handoff/README.md § 2. */
 data class ReviewState(val index: Int, val frame: CaptureFrame)

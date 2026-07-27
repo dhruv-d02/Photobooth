@@ -92,6 +92,23 @@ class CaptureViewModel(
                 }
             }
         }
+
+        // Camera *availability*, which permission alone doesn't tell us. ensureCameraReady()
+        // can only optimistically report Live once permission is granted - the real bind
+        // happens later, in the preview surface. Without this, a bind failure left the UI
+        // saying "FRONT CAMERA LIVE" while every exposure silently became a blank placeholder.
+        viewModelScope.launch {
+            cameraController.cameraError.collect { error ->
+                if (error != null && !sessionUsesPlaceholder) {
+                    _uiState.update {
+                        it.copy(
+                            cameraState = CameraState.Unavailable,
+                            log = "Camera unavailable — placeholder frames armed.",
+                        )
+                    }
+                }
+            }
+        }
     }
 
     /** Shot count is configurable 2-8 (default 4) - design/handoff/README.md § Config. */
@@ -153,9 +170,7 @@ class CaptureViewModel(
      *  same camera bring-up as a fresh session, it just keeps the frames around. */
     private suspend fun ensureCameraReady() {
         if (cameraController.hasCameraPermission.value) {
-            _uiState.update {
-                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-            }
+            markPermissionGranted()
             return
         }
         _uiState.update { it.copy(cameraState = CameraState.RequestingPermission) }
@@ -164,12 +179,25 @@ class CaptureViewModel(
             cameraController.hasCameraPermission.first { it }
         }
         if (granted == true) {
-            _uiState.update {
-                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-            }
+            markPermissionGranted()
         } else {
             _uiState.update {
                 it.copy(cameraState = CameraState.Denied, log = "Camera unavailable — placeholder frames armed.")
+            }
+        }
+    }
+
+    /** Permission is granted, but that alone doesn't mean the camera opened - if a bind has
+     *  already failed (see the [cameraController] error collector in `init`), stay honest
+     *  rather than announcing a live camera that isn't. */
+    private fun markPermissionGranted() {
+        if (cameraController.cameraError.value != null) {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Unavailable, log = "Camera unavailable — placeholder frames armed.")
+            }
+        } else {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
             }
         }
     }
@@ -238,7 +266,11 @@ class CaptureViewModel(
     }
 
     private fun runQueue() {
-        sessionUsesPlaceholder = _uiState.value.cameraState == CameraState.Denied
+        // Both non-Live terminal states mean "no real pixels are coming" - freeze that in for
+        // the whole session so a strip can't end up half real photos, half placeholders.
+        sessionUsesPlaceholder = _uiState.value.cameraState.let {
+            it == CameraState.Denied || it == CameraState.Unavailable
+        }
         launchSessionWork {
             _uiState.update { it.copy(shooting = true) }
             processNextInQueue()
