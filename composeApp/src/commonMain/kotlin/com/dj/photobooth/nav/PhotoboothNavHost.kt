@@ -137,26 +137,25 @@ fun PhotoboothNavHost(
 
             composable(Route.Shoot.route) {
                 val viewModel = viewModel { CaptureViewModel(cameraController) }
-                // Read once at entry, so a later reset of retakeSlot can't change this
-                // destination's mode out from under an in-flight session.
-                val slot = remember { retakeSlot }
-                val framesAtEntry = remember { sessionFrames }
 
                 // Starting the session lives here, not in CaptureScreen: only the nav layer
                 // knows whether the user asked for a fresh session or a single-slot retake.
+                // startOnce is idempotent, which matters because this effect re-runs whenever
+                // the composition is rebuilt (rotation) while the ViewModel itself survives -
+                // an unguarded onStartSession() there would wipe every accepted frame.
                 LaunchedEffect(viewModel) {
-                    if (slot != null && slot in framesAtEntry.indices) {
-                        viewModel.onStartRetake(slot, framesAtEntry)
-                    } else {
-                        viewModel.onStartSession()
-                    }
+                    viewModel.startOnce(retakeSlot, sessionFrames)
+                    // Consumed: the ViewModel now owns the mode (CaptureViewModel.retakeSlot),
+                    // so clearing here stops a stale request leaking into some later, unrelated
+                    // visit to Shoot - e.g. backing out of a retake, then tapping the SHOOT tab,
+                    // which would otherwise start a phantom single-slot retake over an old strip.
+                    retakeSlot = null
                 }
 
                 CaptureScreen(
                     viewModel = viewModel,
                     cameraController = cameraController,
                     onExitToLanding = {
-                        retakeSlot = null
                         navController.navigate(Route.Booth.route) {
                             popUpTo(Route.Booth.route) { inclusive = false }
                             launchSingleTop = true
@@ -164,11 +163,15 @@ fun PhotoboothNavHost(
                     },
                     onSessionComplete = { frames ->
                         sessionFrames = frames
+                        // Asked of the ViewModel, not of nav-layer state: the ViewModel survives
+                        // configuration changes, so this still reads correctly after a rotation
+                        // mid-retake (where a `remember`ed copy would have reset to null and
+                        // pushed a duplicate Preview entry).
+                        val slot = viewModel.retakeSlot
                         if (slot != null && slot in frames.indices) {
                             // Retake: hand the one new frame back and return to the Preview
                             // entry already sitting underneath, ViewModel and all.
                             retakeResult = slot to frames[slot]
-                            retakeSlot = null
                             navController.popBackStack()
                         } else {
                             // Fresh session: replace Shoot with a brand-new Preview entry, so

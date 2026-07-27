@@ -89,6 +89,76 @@ class CaptureViewModelTest {
     }
 
     @Test
+    fun `retake re-exposes only the targeted slot and keeps every other frame`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 3)
+        val existing = listOf(
+            CaptureFrame(jpegBytes = byteArrayOf(1)),
+            CaptureFrame(jpegBytes = byteArrayOf(2)),
+            CaptureFrame(jpegBytes = byteArrayOf(3)),
+        )
+
+        viewModel.onStartRetake(slotIndex = 1, existingFrames = existing)
+        runCurrent()
+
+        // Nothing cleared: all three frames are still present, only slot 1 is queued.
+        assertEquals(3, viewModel.uiState.value.acceptedCount)
+        assertEquals(listOf(1), viewModel.uiState.value.queue)
+        assertEquals(1, viewModel.retakeSlot)
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        assertEquals(1, viewModel.uiState.value.review?.index, "retake must review the same slot")
+        viewModel.onKeep()
+        advanceTimeBy(420 + 260)
+        runCurrent()
+
+        val frames = viewModel.uiState.value.frames
+        assertEquals(3, frames.size, "retake must never append or shift a slot")
+        assertEquals(existing[0], frames[0], "untouched slots must survive verbatim")
+        assertEquals(existing[2], frames[2], "untouched slots must survive verbatim")
+        assertTrue(frames[1] != existing[1], "the targeted slot must actually be replaced")
+        assertEquals(1, camera.captureCount, "a retake exposes exactly one frame")
+        assertTrue(viewModel.uiState.value.sessionComplete)
+    }
+
+    @Test
+    fun `startOnce is idempotent so a rotation cannot wipe accepted frames`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 2)
+
+        viewModel.startOnce(retakeSlotIndex = null, existingFrames = emptyList())
+        runCurrent()
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        viewModel.onKeep()
+        advanceTimeBy(420)
+        runCurrent()
+        assertEquals(1, viewModel.uiState.value.acceptedCount)
+
+        // Simulates the LaunchedEffect re-firing after a configuration change: the composition
+        // is rebuilt but this ViewModel is not, so a second start must be a no-op.
+        viewModel.startOnce(retakeSlotIndex = null, existingFrames = emptyList())
+        runCurrent()
+
+        assertEquals(1, viewModel.uiState.value.acceptedCount, "restarting must not clear frames")
+    }
+
+    @Test
+    fun `startOnce falls back to a fresh session when the retake slot is out of range`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 2)
+
+        // Guards the nav layer handing over a stale slot with an empty/short frame list -
+        // must not throw out of onStartRetake's require().
+        viewModel.startOnce(retakeSlotIndex = 5, existingFrames = emptyList())
+        runCurrent()
+
+        assertNull(viewModel.retakeSlot)
+        assertEquals(0, viewModel.uiState.value.acceptedCount)
+    }
+
+    @Test
     fun `shoot again re-queues the same index instead of advancing`() = runTest {
         val camera = FakeCameraController()
         val viewModel = CaptureViewModel(camera, initialShotCount = 2)

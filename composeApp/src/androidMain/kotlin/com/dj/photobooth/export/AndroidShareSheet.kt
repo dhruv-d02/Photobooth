@@ -1,8 +1,8 @@
 package com.dj.photobooth.export
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.ComponentActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -13,10 +13,13 @@ import kotlinx.coroutines.withContext
  * MediaStore content provider grants read access to the chosen target app itself, no
  * FileProvider is needed here (that's only required for files the app owns privately).
  *
- * Takes a [ComponentActivity] (not a plain Context) so starting the chooser doesn't need
- * FLAG_ACTIVITY_NEW_TASK, mirroring why AndroidCameraController needs a ComponentActivity too.
+ * Holds `applicationContext` and uses `FLAG_ACTIVITY_NEW_TASK` rather than capturing an
+ * Activity - see [AndroidMediaViewer]'s doc comment for why an Activity reference is unsafe
+ * for anything reached through a NavBackStackEntry-scoped ViewModel.
  */
-class AndroidShareSheet(private val activity: ComponentActivity) : ShareSheet {
+class AndroidShareSheet(context: Context) : ShareSheet {
+
+    private val context = context.applicationContext
 
     override suspend fun shareImage(mediaPath: String, displayName: String) = withContext(Dispatchers.Main) {
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
@@ -24,6 +27,9 @@ class AndroidShareSheet(private val activity: ComponentActivity) : ShareSheet {
             putExtra(Intent.EXTRA_STREAM, Uri.parse(mediaPath))
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        activity.startActivity(Intent.createChooser(sendIntent, displayName))
+        val chooser = Intent.createChooser(sendIntent, displayName).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
     }
 }

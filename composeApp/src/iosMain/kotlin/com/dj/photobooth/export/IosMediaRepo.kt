@@ -56,8 +56,11 @@ class IosMediaRepo : MediaRepo {
      * data could be re-saved. Throws rather than silently no-op'ing so the gap is loud when
      * iOS bring-up starts, matching how the rest of iosMain is deliberately unverified.
      */
+    // UnsupportedOperationException, not NotImplementedError/TODO(): callers catch Exception
+    // (see GalleryViewModel.onSaveCopy), and NotImplementedError extends Error - it would slip
+    // straight past that catch and crash the app rather than surfacing "save failed".
     override suspend fun copyToDevice(sourcePath: String, displayName: String): String =
-        throw NotImplementedError(
+        throw UnsupportedOperationException(
             "iOS copyToDevice needs IosMediaRepo.savePng to return a real PHAsset identifier first"
         )
 

@@ -50,6 +50,35 @@ class CaptureViewModel(
     // placeholders, with no restart in between.
     private var sessionUsesPlaceholder = false
 
+    // Which slot a single-slot retake is targeting, or null for a normal full session. Owned
+    // here rather than by the nav layer because this ViewModel survives configuration changes
+    // (it's scoped to a NavBackStackEntry) while the nav layer's `remember`ed state does not -
+    // so after a rotation mid-retake, this is the only surviving record of which mode we're in.
+    var retakeSlot: Int? = null
+        private set
+
+    // Guards [startOnce]: the composition is torn down and rebuilt on every configuration
+    // change, but this ViewModel is not, so an unguarded start-on-appear would re-run
+    // onStartSession() after each rotation and silently wipe every accepted frame.
+    private var started = false
+
+    /**
+     * Starts this ViewModel's one and only session, idempotently - safe to call from a
+     * `LaunchedEffect` that re-fires on recomposition/rotation. Picks between a fresh session
+     * and a single-slot retake based on [retakeSlotIndex]; re-entering Capture later gets a new
+     * ViewModel (new back-stack entry) and therefore a new session, which is exactly the
+     * intended lifetime.
+     */
+    fun startOnce(retakeSlotIndex: Int?, existingFrames: List<CaptureFrame>) {
+        if (started) return
+        started = true
+        if (retakeSlotIndex != null && retakeSlotIndex in existingFrames.indices) {
+            onStartRetake(retakeSlotIndex, existingFrames)
+        } else {
+            onStartSession()
+        }
+    }
+
     init {
         // Keep cameraState in sync any time permission changes (e.g. the user grants it from
         // a system prompt after we already requested it in onStartSession). Only upgrades
@@ -76,6 +105,7 @@ class CaptureViewModel(
     fun onStartSession() {
         val count = _uiState.value.shotCount
         sessionUsesPlaceholder = false
+        retakeSlot = null
         _uiState.update {
             it.copy(
                 frames = List(count) { null },
@@ -104,6 +134,7 @@ class CaptureViewModel(
             "retake slot $slotIndex out of range for ${existingFrames.size} frames"
         }
         sessionUsesPlaceholder = false
+        retakeSlot = slotIndex
         _uiState.update {
             it.copy(
                 shotCount = existingFrames.size,

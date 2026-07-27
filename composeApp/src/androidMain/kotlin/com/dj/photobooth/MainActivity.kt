@@ -24,9 +24,10 @@ class MainActivity : ComponentActivity() {
         val cameraController = AndroidCameraController(this)
         val galleryRepo = (application as PhotoboothApplication).galleryRepo
         val mediaRepo = AndroidMediaRepo(this)
-        // These two genuinely need the Activity (startActivity without NEW_TASK), so they are
-        // Activity-scoped by necessity - safe now that the ViewModels holding them are
-        // obtained via viewModel() and therefore actually cleared.
+        // All three take applicationContext internally, deliberately. They end up held by
+        // ViewModels scoped to a NavBackStackEntry, and that store survives configuration
+        // changes - so an Activity captured here would still be the destroyed pre-rotation one
+        // the next time the user taps share/open.
         val shareSheet = AndroidShareSheet(this)
         val mediaViewer = AndroidMediaViewer(this)
         enableEdgeToEdge()

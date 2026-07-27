@@ -122,9 +122,17 @@ private fun GalleryHeader() {
 // hatch background (#e9e9ea/#f2f2f3)".
 @Composable
 private fun EmptyState(modifier: Modifier = Modifier) {
-    val dashed = remember {
-        // 6px on / 6px off, matching the hatch's own 6px period so the two read as one texture.
-        Stroke(width = 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f))
+    // dp converted to px, not raw float px: at 2.75x density a raw 6f dash renders ~2.2dp long,
+    // which reads as a solid hairline rather than the specced dashed box.
+    val density = LocalDensity.current
+    val dashed = remember(density) {
+        with(density) {
+            val dashPx = 6.dp.toPx()
+            Stroke(
+                width = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashPx, dashPx), 0f),
+            )
+        }
     }
     Column(
         modifier = modifier
