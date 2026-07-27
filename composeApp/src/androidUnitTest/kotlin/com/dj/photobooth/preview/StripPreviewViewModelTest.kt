@@ -25,6 +25,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -52,6 +54,9 @@ private class FakeMediaRepo(private val shouldThrow: Boolean = false) : MediaRep
         lastSavedName = displayName
         return "content://media/external/images/$displayName"
     }
+
+    override suspend fun copyToDevice(sourcePath: String, displayName: String): String =
+        "content://media/external/images/$displayName"
 }
 
 private class FakeShareSheet : ShareSheet {
@@ -108,7 +113,7 @@ class StripPreviewViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state.decodedFrames.all { it != null })
         assertNotNull(state.composedImage)
-        assertFalseComposing(viewModel)
+        assertFalse(state.isComposing)
     }
 
     @Test
@@ -157,7 +162,7 @@ class StripPreviewViewModelTest {
         val viewModel = newViewModel(frames = List(2) { placeholderFrame() })
         runCurrent()
 
-        assertThrowsIllegalArgument { viewModel.replaceFrame(5, placeholderFrame()) }
+        assertFailsWith<IllegalArgumentException> { viewModel.replaceFrame(5, placeholderFrame()) }
     }
 
     @Test
@@ -186,7 +191,7 @@ class StripPreviewViewModelTest {
         runCurrent()
 
         val state = viewModel.uiState.value
-        assertTrue(!state.saved)
+        assertFalse(state.saved)
         assertNotNull(state.saveError)
     }
 
@@ -216,16 +221,4 @@ class StripPreviewViewModelTest {
         assertEquals(viewModel.uiState.value.savedPath, shareSheet.lastSharedPath)
     }
 
-    private fun assertFalseComposing(viewModel: StripPreviewViewModel) {
-        assertEquals(false, viewModel.uiState.value.isComposing)
-    }
-
-    private inline fun assertThrowsIllegalArgument(block: () -> Unit) {
-        try {
-            block()
-            throw AssertionError("expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            // expected
-        }
-    }
 }

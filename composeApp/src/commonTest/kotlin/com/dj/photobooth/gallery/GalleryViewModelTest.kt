@@ -1,6 +1,7 @@
 package com.dj.photobooth.gallery
 
-import com.dj.photobooth.export.ShareSheet
+import com.dj.photobooth.export.MediaRepo
+import com.dj.photobooth.export.MediaViewer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** An in-memory GalleryRepo double, mirroring CaptureViewModelTest's FakeCameraController -
@@ -35,10 +38,23 @@ private class FakeGalleryRepo : GalleryRepo {
     }
 }
 
-private class FakeShareSheet : ShareSheet {
-    var lastSharedPath: String? = null
-    override suspend fun shareImage(mediaPath: String, displayName: String) {
-        lastSharedPath = mediaPath
+private class FakeMediaRepo(private val shouldThrow: Boolean = false) : MediaRepo {
+    var lastCopiedSource: String? = null
+
+    override suspend fun savePng(pngBytes: ByteArray, displayName: String): String =
+        "content://media/$displayName"
+
+    override suspend fun copyToDevice(sourcePath: String, displayName: String): String {
+        if (shouldThrow) error("simulated copy failure")
+        lastCopiedSource = sourcePath
+        return "content://media/$displayName"
+    }
+}
+
+private class FakeMediaViewer : MediaViewer {
+    var lastOpenedPath: String? = null
+    override suspend fun openImage(mediaPath: String) {
+        lastOpenedPath = mediaPath
     }
 }
 
@@ -50,6 +66,12 @@ private fun entry(id: Long, createdAt: Long) = HistoryEntry(
     createdAt = createdAt,
     stamp = "JUL 25, 2026",
 )
+
+private fun newViewModel(
+    repo: GalleryRepo,
+    mediaRepo: MediaRepo = FakeMediaRepo(),
+    mediaViewer: MediaViewer? = null,
+) = GalleryViewModel(repo = repo, mediaRepo = mediaRepo, mediaViewer = mediaViewer)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GalleryViewModelTest {
@@ -66,16 +88,16 @@ class GalleryViewModelTest {
 
     @Test
     fun `empty repo surfaces as empty ui state`() = runTest {
-        val viewModel = GalleryViewModel(FakeGalleryRepo())
+        val viewModel = newViewModel(FakeGalleryRepo())
         runCurrent()
         assertTrue(viewModel.uiState.value.isEmpty)
-        assertEquals("00", viewModel.uiState.value.countLabel)
+        assertEquals(0, viewModel.uiState.value.entries.size)
     }
 
     @Test
     fun `entries flow through to ui state uncapped`() = runTest {
         val repo = FakeGalleryRepo()
-        val viewModel = GalleryViewModel(repo)
+        val viewModel = newViewModel(repo)
         runCurrent()
 
         // CLAUDE.md: no eviction limit - save well past the prototype's old 12-item cap.
@@ -83,7 +105,6 @@ class GalleryViewModelTest {
         runCurrent()
 
         assertEquals(15, viewModel.uiState.value.entries.size)
-        assertEquals("15", viewModel.uiState.value.countLabel)
     }
 
     @Test
@@ -91,7 +112,7 @@ class GalleryViewModelTest {
         val repo = FakeGalleryRepo()
         repo.save(entry(id = 1, createdAt = 1))
         repo.save(entry(id = 2, createdAt = 2))
-        val viewModel = GalleryViewModel(repo)
+        val viewModel = newViewModel(repo)
         runCurrent()
 
         viewModel.onDelete(entry(id = 1, createdAt = 1))
@@ -101,26 +122,56 @@ class GalleryViewModelTest {
     }
 
     @Test
-    fun `share forwards the entry's saved path to the share sheet`() = runTest {
+    fun `save copies the archived strip back to device storage`() = runTest {
         val repo = FakeGalleryRepo()
         repo.save(entry(id = 1, createdAt = 1))
-        val shareSheet = FakeShareSheet()
-        val viewModel = GalleryViewModel(repo, shareSheet)
+        val mediaRepo = FakeMediaRepo()
+        val viewModel = newViewModel(repo, mediaRepo = mediaRepo)
         runCurrent()
 
-        viewModel.onShare(entry(id = 1, createdAt = 1))
+        viewModel.onSaveCopy(entry(id = 1, createdAt = 1))
         runCurrent()
 
-        assertEquals("content://strip/1", shareSheet.lastSharedPath)
+        assertEquals("content://strip/1", mediaRepo.lastCopiedSource)
+        assertNotNull(viewModel.uiState.value.message, "a successful save must report back")
     }
 
     @Test
-    fun `share without a wired share sheet is a no-op, not a crash`() = runTest {
+    fun `a save failure surfaces a message instead of crashing`() = runTest {
         val repo = FakeGalleryRepo()
-        val viewModel = GalleryViewModel(repo) // no ShareSheet passed
+        repo.save(entry(id = 1, createdAt = 1))
+        val viewModel = newViewModel(repo, mediaRepo = FakeMediaRepo(shouldThrow = true))
         runCurrent()
 
-        viewModel.onShare(entry(id = 1, createdAt = 1)) // must not throw
+        viewModel.onSaveCopy(entry(id = 1, createdAt = 1))
         runCurrent()
+
+        assertNotNull(viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `opening an entry hands its path to the platform viewer`() = runTest {
+        val repo = FakeGalleryRepo()
+        repo.save(entry(id = 1, createdAt = 1))
+        val viewer = FakeMediaViewer()
+        val viewModel = newViewModel(repo, mediaViewer = viewer)
+        runCurrent()
+
+        viewModel.onOpen(entry(id = 1, createdAt = 1))
+        runCurrent()
+
+        assertEquals("content://strip/1", viewer.lastOpenedPath)
+    }
+
+    @Test
+    fun `opening without a wired viewer is a no-op, not a crash`() = runTest {
+        val repo = FakeGalleryRepo()
+        val viewModel = newViewModel(repo) // no MediaViewer passed
+        runCurrent()
+
+        viewModel.onOpen(entry(id = 1, createdAt = 1)) // must not throw
+        runCurrent()
+
+        assertNull(viewModel.uiState.value.message)
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -47,7 +48,11 @@ fun LandingScreen(onStartSession: () -> Unit) {
             .fillMaxSize()
             .background(PhotoboothColors.Ground)
             // "a faint 27.2px grid (#1d1f2008 1px lines both axes)" behind the whole screen.
-            .drawBehind { drawFaintGrid() },
+            .drawBehind { drawFaintGrid() }
+            // Edge-to-edge is on and the NavHost no longer applies a blanket status-bar inset
+            // (that would break Capture's full-bleed dark screen), so each light screen adds
+            // its own - the ground/grid still paint behind the status bar, only content insets.
+            .statusBarsPadding(),
     ) {
         TopBlock()
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {

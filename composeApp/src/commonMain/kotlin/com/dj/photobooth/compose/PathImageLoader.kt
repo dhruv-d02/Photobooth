@@ -15,7 +15,13 @@ import androidx.compose.ui.graphics.ImageBitmap
  * crash the Gallery grid, just render that one card without a thumbnail.
  */
 interface PathImageLoader {
-    suspend fun load(path: String): ImageBitmap?
+    /**
+     * Loads the image at [path], downscaled so it is no narrower than [maxWidthPx] but no
+     * larger than it needs to be. The size hint is required, not optional: a saved strip is a
+     * full 2x-scale PNG (~640x1800), and decoding that at native size for every card in the
+     * Gallery grid is the difference between a few hundred KB and several MB per card.
+     */
+    suspend fun load(path: String, maxWidthPx: Int): ImageBitmap?
 }
 
 /**

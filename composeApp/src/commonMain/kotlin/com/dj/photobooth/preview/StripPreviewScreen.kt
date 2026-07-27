@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -62,7 +64,17 @@ fun StripPreviewScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(PhotoboothColors.Ground)) {
+    // statusBarsPadding: the NavHost deliberately applies no blanket status-bar inset (it
+    // would break Capture's full-bleed dark screen), so each light screen adds its own.
+    // navigationBarsPadding too - Preview hides the tab bar, so nothing else reserves that
+    // space and the SAVE PNG action bar would otherwise sit under the gesture bar.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PhotoboothColors.Ground)
+            .statusBarsPadding()
+            .navigationBarsPadding(),
+    ) {
         PreviewHeader(state)
 
         Column(

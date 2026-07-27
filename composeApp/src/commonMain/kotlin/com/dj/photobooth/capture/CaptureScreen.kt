@@ -14,8 +14,10 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -54,6 +56,11 @@ import kotlinx.coroutines.withContext
  * kept (see CaptureViewModel.processNextInQueue). It's how the NavHost (not built in this
  * file) knows to transition from Capture to the Preview route once a session finishes;
  * defaults to a no-op so existing call sites that don't care about this yet keep compiling.
+ *
+ * Starting the session is deliberately NOT done here: the caller picks between
+ * [CaptureViewModel.onStartSession] (fresh, clears every frame) and
+ * [CaptureViewModel.onStartRetake] (re-shoot one slot, keeps the rest), and only the NavHost
+ * knows which of those the user asked for. This screen stays a pure View either way.
  */
 @Composable
 fun CaptureScreen(
@@ -68,21 +75,14 @@ fun CaptureScreen(
     // thumbnail row - is decoded once, not twice.
     val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
-    // Kicks off the session (permission request, then camera-live) the moment this screen
-    // appears - nothing else in production code ever calls onStartSession() (only tests do),
-    // so without this the camera permission dialog never fires and cameraState just sits at
-    // its Idle default forever. Keyed on viewModel, not Unit, so a fresh ViewModel instance
-    // (e.g. a new CaptureViewModel from re-entering Shoot) reliably starts its own session.
-    LaunchedEffect(viewModel) {
-        viewModel.onStartSession()
-    }
-
     LaunchedEffect(state.sessionComplete) {
         if (state.sessionComplete) {
             onSessionComplete(state.frames.filterNotNull())
         }
     }
 
+    // The dark surface itself stays full-bleed (design/handoff/README.md § 2), edge to edge
+    // behind both system bars - only the bars' *content* is inset, below.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -109,6 +109,9 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // The screen behind stays full-bleed; only this bar's controls are pushed clear of
+            // the status bar, so EXIT stays tappable under edge-to-edge.
+            .statusBarsPadding()
             .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -294,6 +297,9 @@ private fun CaptureBottomBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // Capture hides the tab bar (a session is modal), so nothing else reserves the
+            // gesture-bar space that the shutter/KEEP buttons would otherwise sit under.
+            .navigationBarsPadding()
             .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
         verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
     ) {

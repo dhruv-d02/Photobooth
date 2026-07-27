@@ -49,6 +49,18 @@ class IosMediaRepo : MediaRepo {
             }
         }
 
+    /**
+     * TODO(phase-4, needs Mac/cloud-CI): unimplementable until [savePng] returns a real
+     * PHAsset localIdentifier rather than echoing [displayName] back (see this class's own
+     * TODO) - without that there's no way to resolve [sourcePath] to an asset whose image
+     * data could be re-saved. Throws rather than silently no-op'ing so the gap is loud when
+     * iOS bring-up starts, matching how the rest of iosMain is deliberately unverified.
+     */
+    override suspend fun copyToDevice(sourcePath: String, displayName: String): String =
+        throw NotImplementedError(
+            "iOS copyToDevice needs IosMediaRepo.savePng to return a real PHAsset identifier first"
+        )
+
     /** Photos-library authorization is a prerequisite for [savePng] - surfaced separately so
      *  a future caller can gate the SAVE PNG button on it, same shape as
      *  CameraController.hasCameraPermission. */

@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.ImageBitmap
  * "missing image" contract) instead of crashing, until that TODO and this one land together.
  */
 private object NoopIosPathImageLoader : PathImageLoader {
-    override suspend fun load(path: String): ImageBitmap? = null
+    override suspend fun load(path: String, maxWidthPx: Int): ImageBitmap? = null
 }
 
 @Composable

@@ -85,26 +85,60 @@ class CaptureViewModel(
                 log = "",
             )
         }
-        launchSessionWork {
-            if (cameraController.hasCameraPermission.value) {
-                _uiState.update {
-                    it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-                }
-            } else {
-                _uiState.update { it.copy(cameraState = CameraState.RequestingPermission) }
-                cameraController.requestCameraPermission()
-                val granted = withTimeoutOrNull(10_000) {
-                    cameraController.hasCameraPermission.first { it }
-                }
-                if (granted == true) {
-                    _uiState.update {
-                        it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(cameraState = CameraState.Denied, log = "Camera unavailable — placeholder frames armed.")
-                    }
-                }
+        launchSessionWork { ensureCameraReady() }
+    }
+
+    /**
+     * Re-shoot exactly ONE slot of an already-finished session - the Preview screen's per-cell
+     * `RETAKE 0N` chip. Unlike [onStartSession] this deliberately does not clear anything:
+     * [existingFrames] is carried straight through and only [slotIndex] gets re-exposed, so the
+     * other accepted frames (and, one layer up, the user's treatment/frame-colour/layout
+     * choices) survive the round trip. Same "never append or shift, always the same slot"
+     * invariant [onShootAgain] enforces inside a running session.
+     *
+     * Arms a single-index queue rather than auto-firing - the user still taps the shutter,
+     * which then reads `SHOOT 0N` for that one frame (see [onRetake], whose shape this reuses).
+     */
+    fun onStartRetake(slotIndex: Int, existingFrames: List<CaptureFrame>) {
+        require(slotIndex in existingFrames.indices) {
+            "retake slot $slotIndex out of range for ${existingFrames.size} frames"
+        }
+        sessionUsesPlaceholder = false
+        _uiState.update {
+            it.copy(
+                shotCount = existingFrames.size,
+                frames = existingFrames,
+                queue = listOf(slotIndex),
+                review = null,
+                sessionComplete = false,
+                log = "",
+            )
+        }
+        launchSessionWork { ensureCameraReady() }
+    }
+
+    /** Confirm or request camera access, falling back to placeholder mode if it never arrives.
+     *  Shared verbatim by [onStartSession] and [onStartRetake] - a retake needs exactly the
+     *  same camera bring-up as a fresh session, it just keeps the frames around. */
+    private suspend fun ensureCameraReady() {
+        if (cameraController.hasCameraPermission.value) {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
+            }
+            return
+        }
+        _uiState.update { it.copy(cameraState = CameraState.RequestingPermission) }
+        cameraController.requestCameraPermission()
+        val granted = withTimeoutOrNull(10_000) {
+            cameraController.hasCameraPermission.first { it }
+        }
+        if (granted == true) {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
+            }
+        } else {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Denied, log = "Camera unavailable — placeholder frames armed.")
             }
         }
     }
@@ -223,6 +257,7 @@ class CaptureViewModel(
     }
 
     override fun onCleared() {
+        super.onCleared()
         sessionJob?.cancel()
     }
 

@@ -34,6 +34,9 @@ object PhotoboothColors {
     val HairlineOnLight = TextPrimary.copy(alpha = 0x29 / 255f)
     val HairlineOnDarkSubtle = Paper.copy(alpha = 0x26 / 255f)
     val HairlineOnDark = Paper.copy(alpha = 0x33 / 255f)
+    // #1d1f2033 - slightly stronger than HairlineOnLight (#1d1f2029), used only for the
+    // Gallery empty state's dashed box (design/handoff/README.md §4).
+    val HairlineDashed = TextPrimary.copy(alpha = 0x33 / 255f)
     val SurfaceWashTranslucent = SurfaceWash.copy(alpha = 0x66 / 255f)
 
     // Capture-screen-specific alpha variants (design/handoff/README.md § 2) - named here so

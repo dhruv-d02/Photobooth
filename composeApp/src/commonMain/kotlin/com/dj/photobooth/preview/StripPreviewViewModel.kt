@@ -187,6 +187,7 @@ class StripPreviewViewModel(
     }
 
     override fun onCleared() {
+        super.onCleared()
         pipelineJob?.cancel()
     }
 }

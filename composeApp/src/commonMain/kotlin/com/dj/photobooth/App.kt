@@ -3,6 +3,7 @@ package com.dj.photobooth
 import androidx.compose.runtime.Composable
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.export.MediaRepo
+import com.dj.photobooth.export.MediaViewer
 import com.dj.photobooth.export.ShareSheet
 import com.dj.photobooth.gallery.GalleryRepo
 import com.dj.photobooth.nav.PhotoboothNavHost
@@ -24,6 +25,7 @@ fun App(
     galleryRepo: GalleryRepo,
     mediaRepo: MediaRepo,
     shareSheet: ShareSheet? = null,
+    mediaViewer: MediaViewer? = null,
 ) {
     PhotoboothTheme {
         PhotoboothNavHost(
@@ -31,6 +33,7 @@ fun App(
             galleryRepo = galleryRepo,
             mediaRepo = mediaRepo,
             shareSheet = shareSheet,
+            mediaViewer = mediaViewer,
         )
     }
 }

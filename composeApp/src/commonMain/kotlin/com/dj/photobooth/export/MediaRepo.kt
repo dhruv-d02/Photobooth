@@ -17,4 +17,15 @@ interface MediaRepo {
      * [com.dj.photobooth.gallery.HistoryEntry.finalImagePath].
      */
     suspend fun savePng(pngBytes: ByteArray, displayName: String): String
+
+    /**
+     * Writes a fresh copy of an already-archived strip (read back from [sourcePath]) into
+     * photo storage under [displayName], returning the new path/URI - what the Gallery card's
+     * `SAVE` link does.
+     *
+     * Note this genuinely produces a second file: a strip reaches the archive *because*
+     * [savePng] already wrote it, so [sourcePath] is by definition already on the device.
+     * `SAVE` is therefore an explicit "give me another copy" action, not a first-time export.
+     */
+    suspend fun copyToDevice(sourcePath: String, displayName: String): String
 }

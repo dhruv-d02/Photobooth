@@ -2,6 +2,7 @@ package com.dj.photobooth.export
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -16,11 +17,16 @@ import kotlinx.coroutines.withContext
  * WRITE_EXTERNAL_STORAGE, declared in AndroidManifest.xml with maxSdkVersion="28" so it's
  * never requested on the modern OS versions this app actually targets going forward.
  */
-class AndroidMediaRepo(private val context: Context) : MediaRepo {
+class AndroidMediaRepo(context: Context) : MediaRepo {
+
+    // applicationContext, not the passed-in Context: this outlives any single Activity (it's
+    // held by ViewModels across configuration changes), so holding an Activity here would leak
+    // it on every rotation. Nothing below needs Activity-scoped state anyway.
+    private val context = context.applicationContext
 
     override suspend fun savePng(pngBytes: ByteArray, displayName: String): String =
         withContext(Dispatchers.IO) {
-            val resolver = context.applicationContext.contentResolver
+            val resolver = context.contentResolver
             val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, "$displayName.png")
@@ -44,5 +50,16 @@ class AndroidMediaRepo(private val context: Context) : MediaRepo {
             }
 
             uri.toString()
+        }
+
+    override suspend fun copyToDevice(sourcePath: String, displayName: String): String =
+        withContext(Dispatchers.IO) {
+            // Straight byte copy rather than decode-to-Bitmap-then-re-encode: the source is
+            // already a PNG we wrote ourselves, so re-encoding would burn memory and CPU to
+            // produce a (lossily re-compressed) equivalent of bytes we can just read.
+            val bytes = context.contentResolver.openInputStream(Uri.parse(sourcePath))?.use {
+                it.readBytes()
+            } ?: error("Unable to read the archived strip at $sourcePath")
+            savePng(bytes, displayName)
         }
 }

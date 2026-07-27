@@ -4,24 +4,23 @@ package com.dj.photobooth.nav
  * Every top-level NavHost destination, per architecture.md § Screen navigation:
  *
  * ```
- * Booth -->|START SESSION| Capture (Shoot)
- * Shoot -->|always starts a session| Capture
- * Capture -->|all frames accepted| Preview
- * Preview -->|RESHOOT| Capture
- * Preview -->|SAVE PNG| Booth
- * Strips -->|tap card| Preview
- * Preview -->|per-cell RETAKE| Capture
+ * Booth   -->|START SESSION|           Shoot (Capture)
+ * Shoot   -->|always starts a session| Shoot
+ * Shoot   -->|all frames accepted|     Preview
+ * Preview -->|RESHOOT|                 Shoot   (fresh session, every frame cleared)
+ * Preview -->|per-cell RETAKE 0N|      Shoot   (one slot only, other frames kept)
+ * Preview -->|SAVE PNG|                Booth
+ * Strips  -->|tap card|                system gallery app (leaves the app entirely)
  * ```
  *
  * A sealed class (not raw string literals scattered at every `navigate()`/`composable()` call
  * site) so the route set is closed and typo-proof. [Booth], [Shoot] and [Strips] are the three
  * bottom-tab destinations (design/handoff/README.md § Bottom tab bar); [Preview] is reached
- * only by finishing a Capture session or tapping a Strips gallery card - never from the tab bar
- * itself, so it deliberately has no [BottomTab] entry.
+ * only by finishing or retaking a Capture session - never from the tab bar itself, so it
+ * deliberately has no [BottomTab] entry.
  *
- * [Preview] and [Strips] route to the real `StripPreviewScreen` (`com.dj.photobooth.preview`)
- * and `GalleryScreen` (`com.dj.photobooth.gallery`) - see [com.dj.photobooth.nav.PhotoboothNavHost]
- * for how their ViewModels are constructed.
+ * Tapping a Strips card is not an in-app navigation at all: it hands the image to the
+ * platform's gallery app via `MediaViewer`, so there is no "view an archived strip" route here.
  */
 sealed class Route(val route: String) {
     data object Booth : Route("booth")

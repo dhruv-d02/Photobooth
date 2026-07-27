@@ -1,5 +1,6 @@
 package com.dj.photobooth.nav
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -10,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -20,6 +22,7 @@ import com.dj.photobooth.capture.CaptureFrame
 import com.dj.photobooth.capture.CaptureScreen
 import com.dj.photobooth.capture.CaptureViewModel
 import com.dj.photobooth.export.MediaRepo
+import com.dj.photobooth.export.MediaViewer
 import com.dj.photobooth.export.ShareSheet
 import com.dj.photobooth.gallery.GalleryRepo
 import com.dj.photobooth.gallery.GalleryScreen
@@ -34,22 +37,28 @@ import com.dj.photobooth.preview.StripPreviewViewModel
  * architecture.md § Screen navigation:
  *
  * ```
- * Booth -->|START SESSION| Shoot (Capture)
- * Shoot -->|always starts a session| Shoot (Capture)
- * Shoot -->|all frames accepted| Preview
- * Strips -->|tap card| Preview      (not yet wired - a saved HistoryEntry has no raw per-frame
- *                                    data to rebuild a StripPreviewViewModel from, only the
- *                                    already-composited final image; deferred, see GalleryScreen's
- *                                    onOpenEntry below)
- * Preview -->|RESHOOT| Shoot
- * Preview -->|SAVE PNG| Booth       (auto-navigates once StripPreviewUiState.saved flips true)
+ * Booth   -->|START SESSION|      Shoot (Capture)
+ * Shoot   -->|always starts a session| Shoot
+ * Shoot   -->|all frames accepted|     Preview
+ * Preview -->|RESHOOT|                 Shoot   (fresh session, every frame cleared)
+ * Preview -->|per-cell RETAKE 0N|      Shoot   (one slot only, other frames kept)
+ * Preview -->|SAVE PNG|                Booth   (auto, once StripPreviewUiState.saved flips)
+ * Strips  -->|tap card|                system gallery app (not an in-app destination)
  * ```
  *
- * [galleryRepo], [mediaRepo] and [shareSheet] are constructed per-platform (MainActivity /
- * MainViewController, mirroring how [cameraController] already arrives) and threaded down to
- * the Strips and Preview destinations - this is the integration point between the two branches
- * that built Gallery/Preview (`feature/export-history`) and this nav graph
- * (`feature/landing-navigation`) independently in parallel.
+ * **ViewModel ownership.** Every ViewModel here is obtained with [viewModel], not `remember` -
+ * that scopes it to the destination's `NavBackStackEntry`, which is what makes `onCleared()`
+ * actually run when the entry leaves the back stack. Constructing them with `remember` instead
+ * leaks their `viewModelScope` forever (CaptureViewModel's permission collector and
+ * GalleryViewModel's eager Room-flow collector both run for the life of the process), and pins
+ * whatever they hold - including the Activity behind [shareSheet]/[mediaViewer].
+ *
+ * **Retake vs reshoot.** RESHOOT clears everything and starts over; per-cell RETAKE re-shoots
+ * a single slot. The difference is [retakeSlot]: when set, Capture starts via
+ * [CaptureViewModel.onStartRetake] (which carries [sessionFrames] through untouched) and, once
+ * the one frame is kept, we `popBackStack()` to the *existing* Preview entry rather than
+ * pushing a new one. That's deliberate - it keeps the Preview ViewModel alive, so the user's
+ * treatment/frame-colour/layout selections survive a retake instead of resetting.
  */
 @Composable
 fun PhotoboothNavHost(
@@ -57,22 +66,24 @@ fun PhotoboothNavHost(
     galleryRepo: GalleryRepo,
     mediaRepo: MediaRepo,
     shareSheet: ShareSheet? = null,
+    mediaViewer: MediaViewer? = null,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    // Real, uncapped count (CLAUDE.md: no eviction limit) straight from the Room-backed repo -
-    // the `stripCount: Int = 0` seam BottomTabBar/PhotoboothNavHost shipped with while Gallery's
-    // data layer was still being built in parallel is now retired in favour of this.
+    // Real, uncapped count (CLAUDE.md: no eviction limit) straight from the Room-backed repo.
     val entries by galleryRepo.entries.collectAsState(initial = emptyList())
 
-    // Frames from the just-completed Capture session, held here (not passed as a nav argument -
-    // Navigation-Compose args aren't a good fit for a list of JPEG byte arrays) until the
-    // Preview destination reads them. Reset to null once consumed isn't necessary: Shoot always
-    // starts a fresh CaptureViewModel per architecture.md ("Shoot --> always starts a session"),
-    // so a stale value here is simply overwritten before Preview could ever be reached again.
-    var pendingFrames by remember { mutableStateOf<List<CaptureFrame>>(emptyList()) }
+    // Frames from the most recent Capture session. Held here rather than passed as a nav
+    // argument - Navigation-Compose args are strings/primitives, not lists of JPEG byte arrays.
+    var sessionFrames by remember { mutableStateOf<List<CaptureFrame>>(emptyList()) }
+
+    // Non-null only while a per-cell RETAKE round trip is in flight; see the class doc.
+    var retakeSlot by remember { mutableStateOf<Int?>(null) }
+
+    // The frame a retake produced, waiting to be handed to the surviving Preview ViewModel.
+    var retakeResult by remember { mutableStateOf<Pair<Int, CaptureFrame>?>(null) }
 
     // Tab bar hidden on Capture (design/handoff/README.md § Bottom tab bar: "present on
     // every screen except capture" - a session is modal) and on Preview (not one of the
@@ -80,6 +91,12 @@ fun PhotoboothNavHost(
     val showTabBar = currentRoute == Route.Booth.route || currentRoute == Route.Strips.route
 
     Scaffold(
+        // Zero content insets: Scaffold's default would pad the NavHost by the status bar
+        // height for *every* destination, which breaks Capture's specced full-bleed dark
+        // screen (a light band appears above it, since Scaffold's own container is the light
+        // Ground). Each screen applies the insets it actually wants instead - see
+        // CaptureScreen's top bar vs the light screens' statusBarsPadding.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (showTabBar) {
                 BottomTabBar(
@@ -105,56 +122,95 @@ fun PhotoboothNavHost(
         NavHost(
             navController = navController,
             startDestination = Route.Booth.route,
+            // With zero content insets above, this is purely the bottom bar's own height -
+            // exactly what we want reserved, and nothing more.
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(Route.Booth.route) {
                 LandingScreen(
-                    onStartSession = { navController.navigate(Route.Shoot.route) },
+                    onStartSession = {
+                        retakeSlot = null
+                        navController.navigate(Route.Shoot.route)
+                    },
                 )
             }
+
             composable(Route.Shoot.route) {
-                // Plain `remember`, matching App.kt's prior convention (see git history) -
-                // Koin/DI isn't wired yet, so a fresh CaptureViewModel per visit to this
-                // destination is the simplest correct thing: entering Shoot always starts a
-                // new session, per architecture.md ("Shoot --> always starts a session").
-                val viewModel = remember(cameraController) { CaptureViewModel(cameraController) }
+                val viewModel = viewModel { CaptureViewModel(cameraController) }
+                // Read once at entry, so a later reset of retakeSlot can't change this
+                // destination's mode out from under an in-flight session.
+                val slot = remember { retakeSlot }
+                val framesAtEntry = remember { sessionFrames }
+
+                // Starting the session lives here, not in CaptureScreen: only the nav layer
+                // knows whether the user asked for a fresh session or a single-slot retake.
+                LaunchedEffect(viewModel) {
+                    if (slot != null && slot in framesAtEntry.indices) {
+                        viewModel.onStartRetake(slot, framesAtEntry)
+                    } else {
+                        viewModel.onStartSession()
+                    }
+                }
+
                 CaptureScreen(
                     viewModel = viewModel,
                     cameraController = cameraController,
                     onExitToLanding = {
+                        retakeSlot = null
                         navController.navigate(Route.Booth.route) {
                             popUpTo(Route.Booth.route) { inclusive = false }
                             launchSingleTop = true
                         }
                     },
                     onSessionComplete = { frames ->
-                        pendingFrames = frames
-                        navController.navigate(Route.Preview.route)
+                        sessionFrames = frames
+                        if (slot != null && slot in frames.indices) {
+                            // Retake: hand the one new frame back and return to the Preview
+                            // entry already sitting underneath, ViewModel and all.
+                            retakeResult = slot to frames[slot]
+                            retakeSlot = null
+                            navController.popBackStack()
+                        } else {
+                            // Fresh session: replace Shoot with a brand-new Preview entry, so
+                            // Back from Preview goes to Booth rather than re-entering Capture.
+                            navController.navigate(Route.Preview.route) {
+                                popUpTo(Route.Shoot.route) { inclusive = true }
+                            }
+                        }
                     },
                 )
             }
+
             composable(Route.Strips.route) {
-                val viewModel = remember(galleryRepo, shareSheet) {
-                    GalleryViewModel(galleryRepo, shareSheet)
+                val viewModel = viewModel {
+                    GalleryViewModel(repo = galleryRepo, mediaRepo = mediaRepo, mediaViewer = mediaViewer)
                 }
-                GalleryScreen(
-                    viewModel = viewModel,
-                    // See class doc above - opening a past entry doesn't have a destination to
-                    // land on yet (no raw frames to preview/re-customize, only the already-saved
-                    // PNG), so this is a deliberate no-op for now rather than a half-built flow.
-                    onOpenEntry = {},
-                )
+                GalleryScreen(viewModel = viewModel)
             }
+
             composable(Route.Preview.route) {
-                val viewModel = remember(pendingFrames, galleryRepo, mediaRepo, shareSheet) {
+                // sessionFrames is read only when the factory first runs for this entry, so a
+                // retake landing later doesn't rebuild the ViewModel and discard the user's
+                // treatment/frame-colour/layout choices - replaceFrame updates it in place.
+                val viewModel = viewModel {
                     StripPreviewViewModel(
-                        initialFrames = pendingFrames,
+                        initialFrames = sessionFrames,
                         galleryRepo = galleryRepo,
                         mediaRepo = mediaRepo,
                         shareSheet = shareSheet,
                     )
                 }
                 val state by viewModel.uiState.collectAsState()
+
+                // Consume a completed retake exactly once - replaceFrame re-runs the
+                // decode/compose pipeline for the updated slot.
+                LaunchedEffect(retakeResult) {
+                    retakeResult?.let { (index, frame) ->
+                        viewModel.replaceFrame(index, frame)
+                        retakeResult = null
+                    }
+                }
+
                 // "Preview -->|SAVE PNG| Booth" (architecture.md's nav diagram) - fires once,
                 // right after onSavePng() successfully archives the strip, same LaunchedEffect
                 // shape CaptureScreen already uses for its own sessionComplete -> navigate edge.
@@ -166,22 +222,22 @@ fun PhotoboothNavHost(
                         }
                     }
                 }
+
                 StripPreviewScreen(
                     viewModel = viewModel,
                     onReshoot = {
+                        // Full restart: clear the retake slot so Capture starts a fresh
+                        // session, and drop this Preview entry entirely.
+                        retakeSlot = null
                         navController.navigate(Route.Shoot.route) {
                             popUpTo(Route.Booth.route) { inclusive = false }
                         }
                     },
-                    // True per-slot retake needs CaptureViewModel to support re-entering the
-                    // capture loop for a single existing session, which doesn't exist yet -
-                    // StripPreviewViewModel.replaceFrame's doc comment already flags this as the
-                    // seam for it. Until that lands, route the same as the full RESHOOT action
-                    // rather than silently doing nothing.
-                    onRetakeRequested = {
-                        navController.navigate(Route.Shoot.route) {
-                            popUpTo(Route.Booth.route) { inclusive = false }
-                        }
+                    onRetakeRequested = { index ->
+                        // Single slot: leave this Preview entry on the back stack so its
+                        // ViewModel (and the user's styling choices) survive the round trip.
+                        retakeSlot = index
+                        navController.navigate(Route.Shoot.route)
                     },
                 )
             }

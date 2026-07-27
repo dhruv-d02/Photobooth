@@ -9,9 +9,10 @@ plugins {
     alias(libs.plugins.androidx.room)
 }
 
-// Room KMP schema export - kept out of version control noise by pointing at a schemas/
-// directory (git-ignored below isn't required, but exporting is what lets Room warn about
-// destructive migrations instead of silently dropping data on a future version bump).
+// Room KMP schema export. The generated JSON under schemas/ IS committed, deliberately: it's
+// the recorded shape of each shipped schema version, which is what lets Room detect a
+// destructive change at build time instead of silently dropping data on a future version bump,
+// and what a future migration test would diff against.
 room {
     schemaDirectory("$projectDir/schemas")
 }
@@ -66,6 +67,7 @@ kotlin {
             // recomposition and, on Android, configuration changes) instead of a plain class
             // that only survives via `remember`.
             implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.androidx.lifecycle.runtime.compose)
             // Phase 3: Room KMP (local history) + its bundled SQLite driver, so the same
             // GalleryRepo/AppDatabase code runs on both targets without a platform-supplied
