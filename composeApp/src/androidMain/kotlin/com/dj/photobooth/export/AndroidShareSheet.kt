@@ -14,8 +14,8 @@ import kotlinx.coroutines.withContext
  * FileProvider is needed here (that's only required for files the app owns privately).
  *
  * Holds `applicationContext` and uses `FLAG_ACTIVITY_NEW_TASK` rather than capturing an
- * Activity - see [AndroidMediaViewer]'s doc comment for why an Activity reference is unsafe
- * for anything reached through a NavBackStackEntry-scoped ViewModel.
+ * Activity - see MainActivity.kt's doc comment for why an Activity reference is unsafe for
+ * anything reached through a NavBackStackEntry-scoped ViewModel.
  */
 class AndroidShareSheet(context: Context) : ShareSheet {
 

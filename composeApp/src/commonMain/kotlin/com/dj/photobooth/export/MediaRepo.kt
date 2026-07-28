@@ -28,4 +28,14 @@ interface MediaRepo {
      * `SAVE` is therefore an explicit "give me another copy" action, not a first-time export.
      */
     suspend fun copyToDevice(sourcePath: String, displayName: String): String
+
+    /**
+     * Permanently removes the image previously saved at [path] (a string this interface itself
+     * returned from [savePng]/[copyToDevice]) from platform photo storage.
+     *
+     * Needed because [com.dj.photobooth.gallery.GalleryRepo.delete] only removes the local Room
+     * *row* - without this, deleting a strip from the Gallery would leave its actual image file
+     * behind on the device forever.
+     */
+    suspend fun delete(path: String)
 }

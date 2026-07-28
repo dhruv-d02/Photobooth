@@ -94,4 +94,15 @@ class AndroidMediaRepo(context: Context) : MediaRepo {
             } ?: error("Unable to read the archived strip at $sourcePath")
             savePng(bytes, displayName)
         }
+
+    override suspend fun delete(path: String) {
+        withContext(Dispatchers.IO) {
+            // The return value is a row count, not a failure signal - zero rows deleted
+            // (already gone, called twice) isn't an error worth surfacing, so it's ignored
+            // rather than checked. Deleting a row this app itself inserted (every path passed
+            // here came from savePng/copyToDevice above) needs no extra grant on API 29+ -
+            // RecoverableSecurityException is only a concern for items another app owns.
+            context.contentResolver.delete(Uri.parse(path), null, null)
+        }
+    }
 }

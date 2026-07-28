@@ -57,6 +57,10 @@ private class FakeMediaRepo(private val shouldThrow: Boolean = false) : MediaRep
 
     override suspend fun copyToDevice(sourcePath: String, displayName: String): String =
         "content://media/external/images/$displayName"
+
+    override suspend fun delete(path: String) {
+        // Not exercised by this ViewModel's tests - StripPreviewViewModel never deletes.
+    }
 }
 
 private class FakeShareSheet : ShareSheet {

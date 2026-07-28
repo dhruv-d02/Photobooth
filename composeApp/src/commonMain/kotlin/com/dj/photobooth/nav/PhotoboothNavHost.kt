@@ -11,19 +11,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.capture.CaptureScreen
 import com.dj.photobooth.capture.CaptureViewModel
 import com.dj.photobooth.export.MediaRepo
-import com.dj.photobooth.export.MediaViewer
 import com.dj.photobooth.export.ShareSheet
 import com.dj.photobooth.gallery.GalleryRepo
 import com.dj.photobooth.gallery.GalleryScreen
 import com.dj.photobooth.gallery.GalleryViewModel
+import com.dj.photobooth.gallery.StripDetailScreen
+import com.dj.photobooth.gallery.StripDetailViewModel
 import com.dj.photobooth.landing.LandingScreen
 import com.dj.photobooth.preview.StripPreviewScreen
 import com.dj.photobooth.preview.StripPreviewViewModel
@@ -34,13 +37,15 @@ import com.dj.photobooth.preview.StripPreviewViewModel
  * architecture.md § Screen navigation:
  *
  * ```
- * Booth   -->|START SESSION|      Shoot (Capture)
- * Shoot   -->|always starts a session| Shoot
- * Shoot   -->|all frames accepted|     Preview
- * Preview -->|RESHOOT|                 Shoot   (fresh session, every frame cleared)
- * Preview -->|per-cell RETAKE 0N|      Shoot   (one slot only, other frames kept)
- * Preview -->|SAVE PNG|                Booth   (auto, once StripPreviewUiState.saved flips)
- * Strips  -->|tap card|                system gallery app (not an in-app destination)
+ * Booth       -->|START SESSION|      Shoot (Capture)
+ * Shoot       -->|always starts a session| Shoot
+ * Shoot       -->|all frames accepted|     Preview
+ * Preview     -->|RESHOOT|                 Shoot       (fresh session, every frame cleared)
+ * Preview     -->|per-cell RETAKE 0N|      Shoot       (one slot only, other frames kept)
+ * Preview     -->|SAVE PNG|                Booth       (auto, once StripPreviewUiState.saved flips)
+ * Strips      -->|tap card|                StripDetail (in-app viewer, see Route.StripDetail)
+ * StripDetail -->|← BACK|                  Strips
+ * StripDetail -->|DELETE, confirmed|       Strips      (auto, once StripDetailUiState.deleted flips)
  * ```
  *
  * **ViewModel ownership.** Every ViewModel here is obtained with [viewModel], not `remember` -
@@ -48,7 +53,7 @@ import com.dj.photobooth.preview.StripPreviewViewModel
  * actually run when the entry leaves the back stack. Constructing them with `remember` instead
  * leaks their `viewModelScope` forever (CaptureViewModel's permission collector and
  * GalleryViewModel's eager Room-flow collector both run for the life of the process), and pins
- * whatever they hold - including the Activity behind [shareSheet]/[mediaViewer].
+ * whatever they hold - including the Activity behind [shareSheet].
  *
  * **Retake vs reshoot.** RESHOOT clears everything and starts over; per-cell RETAKE re-shoots
  * a single slot. The difference is [SessionHandoffViewModel.retakeSlot]: when set, Capture
@@ -69,7 +74,6 @@ fun PhotoboothNavHost(
     galleryRepo: GalleryRepo,
     mediaRepo: MediaRepo,
     shareSheet: ShareSheet? = null,
-    mediaViewer: MediaViewer? = null,
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -211,10 +215,44 @@ fun PhotoboothNavHost(
             }
 
             composable(Route.Strips.route) {
+                val viewModel = viewModel { GalleryViewModel(repo = galleryRepo, mediaRepo = mediaRepo) }
+                GalleryScreen(
+                    viewModel = viewModel,
+                    onOpenEntry = { entry -> navController.navigate(Route.StripDetail.routeFor(entry.id)) },
+                )
+            }
+
+            composable(
+                route = Route.StripDetail.route,
+                arguments = listOf(navArgument("entryId") { type = NavType.LongType }),
+            ) { backStackEntry ->
+                val entryId = backStackEntry.arguments?.getLong("entryId") ?: 0L
                 val viewModel = viewModel {
-                    GalleryViewModel(repo = galleryRepo, mediaRepo = mediaRepo, mediaViewer = mediaViewer)
+                    StripDetailViewModel(
+                        entryId = entryId,
+                        repo = galleryRepo,
+                        mediaRepo = mediaRepo,
+                        shareSheet = shareSheet,
+                    )
                 }
-                GalleryScreen(viewModel = viewModel)
+                val state by viewModel.uiState.collectAsState()
+
+                // DELETE, confirmed: by the time this fires the row is already gone from
+                // galleryRepo (see StripDetailViewModel.onDeleteConfirmed), so there's nothing
+                // left to view here - same LaunchedEffect-on-a-flag shape as Preview's
+                // saved -> navigate(Booth) edge below.
+                LaunchedEffect(state.deleted) {
+                    if (state.deleted) navController.popBackStack()
+                }
+
+                StripDetailScreen(
+                    state = state,
+                    onBack = { navController.popBackStack() },
+                    onShare = viewModel::onShare,
+                    onDeleteRequested = viewModel::onDeleteRequested,
+                    onDeleteConfirmed = viewModel::onDeleteConfirmed,
+                    onDeleteCancelled = viewModel::onDeleteCancelled,
+                )
             }
 
             composable(Route.Preview.route) {
