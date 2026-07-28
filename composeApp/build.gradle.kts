@@ -115,7 +115,15 @@ android {
 
     defaultConfig {
         applicationId = "com.dj.photobooth"
-        minSdk = 26
+        // minSdk 29 (Android 10), not 26: the export path (AndroidMediaRepo) writes to the
+        // shared Pictures/ collection through MediaStore scoped storage, which only exists
+        // from API 29. On API 26-28 the same insert() requires the WRITE_EXTERNAL_STORAGE
+        // *runtime* permission - declaring it in the manifest isn't enough, it has to be
+        // requested at runtime, and this app has no such request flow. Rather than build and
+        // maintain a legacy-storage permission path for three EOL API levels, the floor moves
+        // to where scoped storage works permission-free. CameraX still supports 21+, so this
+        // is purely an export-path constraint.
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"

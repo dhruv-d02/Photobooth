@@ -4,12 +4,14 @@
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
-    <!-- Phase 3 (export): only needed on API 26-28 - MediaStore scoped storage (API 29+,
-         see AndroidMediaRepo) needs no storage permission at all, per architecture.md's
-         "no broad storage permission needed on API 26+" (this repo's minSdk). -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
+    <!-- No WRITE_EXTERNAL_STORAGE here, deliberately. It used to be declared with
+         maxSdkVersion="28" for the legacy (pre-scoped-storage) export path, but minSdk is now
+         29, so that declaration could never apply to any device able to install this app -
+         it was dead weight that also made the app look like it wanted broad storage access on
+         the store listing. On API 29+ MediaStore scoped storage lets an app create and write
+         its own entries in the shared Pictures/ collection with no storage permission at all
+         (see AndroidMediaRepo.savePng). If a legacy path is ever reinstated, the permission
+         must come back *with* a runtime request, not just a manifest line. -->
 
     <!--
       No launcher icon is declared yet - the real app name/branding is still undecided

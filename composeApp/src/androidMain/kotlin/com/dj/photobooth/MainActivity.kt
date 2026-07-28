@@ -24,10 +24,19 @@ class MainActivity : ComponentActivity() {
         val cameraController = AndroidCameraController(this)
         val galleryRepo = (application as PhotoboothApplication).galleryRepo
         val mediaRepo = AndroidMediaRepo(this)
-        // All three take applicationContext internally, deliberately. They end up held by
+        // These three take applicationContext internally, deliberately. They end up held by
         // ViewModels scoped to a NavBackStackEntry, and that store survives configuration
         // changes - so an Activity captured here would still be the destroyed pre-rotation one
         // the next time the user taps share/open.
+        //
+        // AndroidCameraController above is the exception: it genuinely must hold *this*
+        // Activity, because registerForActivityResult needs an ActivityResultRegistry owner and
+        // the CameraX preview binds to this Activity's lifecycle. That makes the instance built
+        // here valid only until the next configuration change, which is why CaptureViewModel
+        // does not keep the controller it was constructed with - PhotoboothNavHost re-points it
+        // at the current instance on every composition pass, via
+        // CaptureViewModel.onCameraControllerChanged. Without that, the surviving ViewModel
+        // would drive a destroyed Activity's unbound ImageCapture and silently emit blank frames.
         val shareSheet = AndroidShareSheet(this)
         val mediaViewer = AndroidMediaViewer(this)
         enableEdgeToEdge()

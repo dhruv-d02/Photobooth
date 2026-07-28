@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 
 /**
@@ -27,18 +29,36 @@ class GalleryViewModel(
     private val mediaViewer: MediaViewer? = null,
 ) : ViewModel() {
 
+    /**
+     * The currently-showing transient message ([text], null when nothing is showing) tagged with
+     * a monotonic [id] identifying which emission put it there.
+     *
+     * WHY the id: [showTransiently]'s clear-on-timer has to know whether the message on screen is
+     * still *its own* emission or a newer one that superseded it. Comparing the text can't tell
+     * those apart, because two actions routinely emit identical wording (both SAVE taps say
+     * "saved another copy to photos"), which let the first tap's timer wipe the second tap's
+     * confirmation seconds early. An id is unique per emission, so the guard tests identity
+     * instead of wording.
+     *
+     * The holder deliberately survives a clear (text goes null, id does not reset) so ids stay
+     * strictly increasing for the ViewModel's whole life and can never be handed out twice.
+     */
+    private data class TransientMessage(val id: Long, val text: String?)
+
     // Transient one-line feedback for SAVE (design has no toast/snackbar component, and a
     // save that reports nothing at all reads as a dead button). Cleared on a timer by
     // [onSaveCopy] rather than by the View, so the state stays fully owned here.
-    private val transientMessage = MutableStateFlow<String?>(null)
+    private val transientMessage = MutableStateFlow(TransientMessage(id = 0L, text = null))
 
     // Eagerly, not WhileSubscribed - this ViewModel exists solely to mirror the repo, so there's
     // no cost tradeoff in deferring collection until a UI subscriber shows up (unlike a flow
     // shared across many consumers), and Eagerly means uiState.value is always current even
     // before the screen (or a test) has started collecting it.
     val uiState: StateFlow<GalleryUiState> = repo.entries
+        // The id is bookkeeping for the clear-on-timer only - the UI still sees a plain String?,
+        // so GalleryUiState (and every screen reading it) is untouched by the tagging.
         .combine(transientMessage) { entries, message ->
-            GalleryUiState(entries = entries, message = message)
+            GalleryUiState(entries = entries, message = message.text)
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, GalleryUiState())
 
@@ -84,11 +104,17 @@ class GalleryViewModel(
     }
 
     private suspend fun showTransiently(message: String) {
-        transientMessage.value = message
+        // updateAndGet is a compare-and-set loop, so taking the next id and publishing the text
+        // happen as one atomic step - two actions finishing at the same instant can't be handed
+        // the same id, whatever dispatcher they resumed on.
+        val emission = transientMessage.updateAndGet { it.copy(id = it.id + 1, text = message) }
         delay(TRANSIENT_MESSAGE_MS)
-        // Only clear if nothing newer replaced it, so a second action's message isn't wiped
-        // early by the first action's timer.
-        if (transientMessage.value == message) transientMessage.value = null
+        // Clear only if *this* emission is still the one on screen. If a later action replaced it,
+        // that action owns the screen and is running its own full-length timer, so standing down
+        // here can't strand a message: whichever emission is showing always has a live timer
+        // behind it. (Comparing text instead of id was the bug - identical wording from two SAVE
+        // taps made this guard always pass, cutting the second confirmation short.)
+        transientMessage.update { if (it.id == emission.id) it.copy(text = null) else it }
     }
 
     private companion object {

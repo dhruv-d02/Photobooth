@@ -353,7 +353,11 @@ private fun CaptureBottomBar(
                 }
                 Button(
                     onClick = onShutter,
-                    enabled = !state.shooting,
+                    // Disabled while exposing, and permanently once the entry has been refused
+                    // (out-of-range retake): a refusal leaves shooting = false and an empty
+                    // queue, which onShutter() would otherwise read as "start a fresh session"
+                    // and wipe the strip the refusal was protecting. EXIT is the only way out.
+                    enabled = !state.shooting && !state.sessionRefused,
                     modifier = Modifier.size(width = 150.dp, height = 56.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PhotoboothColors.Paper,

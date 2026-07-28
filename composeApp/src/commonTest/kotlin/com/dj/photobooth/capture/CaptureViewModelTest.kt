@@ -18,6 +18,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -192,17 +193,38 @@ class CaptureViewModelTest {
     }
 
     @Test
-    fun `startOnce falls back to a fresh session when the retake slot is out of range`() = runTest {
+    fun `startOnce refuses an out-of-range retake instead of starting a fresh session`() = runTest {
         val camera = FakeCameraController()
         val viewModel = CaptureViewModel(camera, initialShotCount = 2)
 
-        // Guards the nav layer handing over a stale slot with an empty/short frame list -
-        // must not throw out of onStartRetake's require().
+        // The nav layer handing over a stale slot with an empty/short frame list is a caller
+        // bug. It must not throw out of onStartRetake's require(), and - crucially - must not
+        // quietly downgrade to a fresh session, which used to wipe every accepted frame and
+        // then push a duplicate Preview entry because retakeSlot stayed null.
         viewModel.startOnce(retakeSlotIndex = 5, existingFrames = emptyList())
         runCurrent()
 
-        assertNull(viewModel.retakeSlot)
-        assertEquals(0, viewModel.uiState.value.acceptedCount)
+        val refused = viewModel.uiState.value
+        assertTrue(refused.sessionRefused, "an out-of-range retake must mark the entry refused")
+        assertNull(viewModel.retakeSlot, "no retake mode should be entered")
+        assertEquals(0, refused.acceptedCount)
+        assertTrue(refused.queue.isEmpty(), "refusing must not queue any exposure")
+        assertFalse(refused.shooting, "refusing must not start shooting")
+        assertTrue(
+            refused.log.contains("Retake unavailable"),
+            "the refusal must be visible to the user, got: '${refused.log}'",
+        )
+
+        // The regression this pins: a refusal leaves shooting = false and an empty queue, which
+        // is exactly the state onShutter() reads as "fresh session, queue every frame". Without
+        // the sessionRefused guard the destructive fallback was only deferred by one tap.
+        viewModel.onShutter()
+        runCurrent()
+
+        val afterShutter = viewModel.uiState.value
+        assertTrue(afterShutter.queue.isEmpty(), "SHOOT after a refusal must not start a session")
+        assertFalse(afterShutter.shooting, "SHOOT after a refusal must not start shooting")
+        assertEquals(0, afterShutter.acceptedCount, "SHOOT after a refusal must not capture")
     }
 
     @Test

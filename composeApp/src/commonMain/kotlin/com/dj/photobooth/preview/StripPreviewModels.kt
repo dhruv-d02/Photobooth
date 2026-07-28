@@ -11,7 +11,8 @@ import com.dj.photobooth.filter.StripLayout
  *
  * [decodedFrames] holds one entry per accepted-frame slot, in the same order as the source
  * CaptureSession's frames - null only while a slot's JPEG is still being decoded off-thread
- * (see StripPreviewViewModel.decodeAllFrames), never left null once decoding settles:
+ * (see StripPreviewViewModel.runPipeline/decodeFrame, which null every slot on construction,
+ * and replaceFrame, which nulls just the retaken slot), never left null once decoding settles:
  * CaptureFrame.isPlaceholder / decode-failure cases both fall back to a generated placeholder
  * bitmap (PlaceholderFrame.kt) rather than staying null forever, since StripCompositor.compose
  * requires a fully-populated, non-null frame list to draw from.

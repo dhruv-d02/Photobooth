@@ -4,7 +4,7 @@ Guidance for Claude Code (or any future contributor) working in this repository.
 
 ## Project status
 
-**Planning and design complete, no application code written yet.** This repo currently contains documentation (`README.md`, `architecture.md`, this file) and a design handoff (`design/handoff/`). The Kotlin Multiplatform project has not been scaffolded. Do not assume `composeApp/` or `iosApp/` exist until Phase 0 below is actually done — check the filesystem before referencing a path from this doc or `architecture.md`.
+Phases 0–3 are built: KMP scaffold + design-token/theme module, CameraX capture loop, film treatment engine + strip/grid compositor, and export/history + navigation. Phase 4 (iOS) is blocked — see Known blockers. Treat the phase list below as the intended order, not a status report: check git history and the filesystem for what actually exists rather than trusting a status line here.
 
 ## What this project is
 

@@ -98,11 +98,32 @@ class StripPreviewViewModel(
     }
 
     /** See class doc - the seam a future nav layer calls once a per-cell RETAKE (or the
-     *  full-session RESHOOT, applied per-slot) actually completes in Capture. */
+     *  full-session RESHOOT, applied per-slot) actually completes in Capture. Replaces the
+     *  raw frame *and* invalidates that slot's already-decoded bitmap, then restarts the
+     *  decode-then-compose pipeline; the slot count never changes (the "same slot index,
+     *  never append/shift" invariant). */
     fun replaceFrame(index: Int, frame: CaptureFrame) {
         require(index in rawFrames.indices) { "slot $index out of range for ${rawFrames.size} frames" }
         rawFrames = rawFrames.toMutableList().also { it[index] = frame }
-        _uiState.update { it.copy(saved = false, savedPath = null) }
+        _uiState.update {
+            it.copy(
+                // Null out the retaken slot's stale bitmap so it can never be composed again.
+                // WHY: runPipeline() below decodes asynchronously, so until it finishes the
+                // decodedFrames entry at [index] still holds the *pre-retake* image. If the
+                // user taps a treatment/frame-colour/layout chip during that window,
+                // recomposeOnly() would otherwise see a fully non-null list, cancel the
+                // in-flight decode and composite from the old bitmap - permanently losing the
+                // retake in both the on-screen preview and the exported PNG. Nulling the slot
+                // is exactly the signal recomposeOnly()'s "a decode is still in flight" guard
+                // looks for, so the style change is instead picked up by the pipeline's own
+                // compose() call once the new frame has decoded.
+                // mapIndexed (rather than an indexed write) keeps this safe even if
+                // decodedFrames hasn't been sized to match rawFrames yet.
+                decodedFrames = it.decodedFrames.mapIndexed { i, bitmap -> if (i == index) null else bitmap },
+                saved = false,
+                savedPath = null,
+            )
+        }
         runPipeline()
     }
 
@@ -157,9 +178,12 @@ class StripPreviewViewModel(
 
     private fun recomposeOnly() {
         val frames = _uiState.value.decodedFrames
-        // A decode is still in flight (e.g. right after construction, or right after
-        // replaceFrame): don't cancel it here, just let runPipeline's own compose() call at
-        // the end of that decode pick up the style change that was just written to uiState.
+        // A null slot means a decode is still in flight and this list is not safe to composite
+        // from: either right after construction (every slot starts null) or right after
+        // replaceFrame (which nulls just the retaken slot precisely so this guard fires).
+        // Don't cancel that decode here - the style change has already been written to uiState,
+        // so runPipeline's own compose() call at the end of the decode will pick it up, using
+        // the fresh bitmaps rather than the stale ones we'd otherwise composite.
         if (frames.any { it == null }) return
         pipelineJob?.cancel()
         pipelineJob = viewModelScope.launch { compose(frames) }
