@@ -59,6 +59,19 @@ class AndroidCameraController(private val activity: ComponentActivity) : CameraC
             CameraSelector.DEFAULT_BACK_CAMERA
         }
 
+    private val _cameraError = MutableStateFlow<CameraError?>(null)
+    override val cameraError: StateFlow<CameraError?> = _cameraError.asStateFlow()
+
+    /**
+     * Reported by [CameraPreviewSurface], which is where the actual CameraX bind happens -
+     * `bindToLifecycle` needs a LifecycleOwner this class deliberately doesn't hold. `internal`
+     * so only that Composable can call it; the common [CameraController] interface exposes
+     * [cameraError] read-only.
+     */
+    internal fun onBindResult(error: CameraError?) {
+        _cameraError.value = error
+    }
+
     override suspend fun capturePhoto(): ByteArray = suspendCancellableCoroutine { continuation ->
         imageCapture.takePicture(
             // A background executor, not Main: onCaptureSuccess below does a full-resolution

@@ -30,11 +30,27 @@ import kotlinx.coroutines.withTimeoutOrNull
  * [onStartSession]) reliably cancels whatever is in flight - two separate untracked
  * `viewModelScope.launch{}` calls (one for keep, one for reshoot) previously meant a pending
  * accept/reshoot pause could resume and mutate state after the user had already exited.
+ *
+ * The [CameraController] is passed in as an *initial* value only, never held as a constructor
+ * `val` - see [onCameraControllerChanged] for why that distinction is load-bearing on Android.
  */
 class CaptureViewModel(
-    private val cameraController: CameraController,
+    initialCameraController: CameraController,
     initialShotCount: Int = 4,
 ) : ViewModel() {
+
+    // WHAT: the controller every capture/permission call goes through, swappable at runtime.
+    // WHY: on Android the controller is owned by the Activity (it registers a permission
+    // launcher and holds the ImageCapture use case that the preview surface binds to the
+    // Activity's lifecycle), and the Activity is rebuilt on every configuration change - while
+    // this ViewModel, scoped to a NavBackStackEntry, is not. Pinning the constructor argument
+    // would leave us driving a controller nobody is bound to. See [onCameraControllerChanged].
+    private var cameraController: CameraController = initialCameraController
+
+    // Tracks the collectors watching the *current* controller's permission/error flows, so a
+    // controller swap can cancel them and re-subscribe to the new instance instead of listening
+    // to a dead Activity's state forever.
+    private var cameraObserverJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         CaptureUiState(shotCount = initialShotCount, frames = List(initialShotCount) { null })
@@ -50,16 +66,129 @@ class CaptureViewModel(
     // placeholders, with no restart in between.
     private var sessionUsesPlaceholder = false
 
+    // Which slot a single-slot retake is targeting, or null for a normal full session. Owned
+    // here rather than by the nav layer because the nav layer hands the request over and then
+    // immediately clears it (SessionHandoffViewModel.consumeRetakeRequest), so from that moment
+    // on this is the only record of which mode the in-flight session is in - which is what the
+    // NavHost reads to decide "pop back to Preview" vs "push a new Preview".
+    var retakeSlot: Int? = null
+        private set
+
+    // Guards [startOnce]: the composition is torn down and rebuilt on every configuration
+    // change, but this ViewModel is not, so an unguarded start-on-appear would re-run
+    // onStartSession() after each rotation and silently wipe every accepted frame.
+    private var started = false
+
+    /**
+     * Starts this ViewModel's one and only session, idempotently - safe to call from a
+     * `LaunchedEffect` that re-fires on recomposition/rotation. Picks between a fresh session
+     * and a single-slot retake based on [retakeSlotIndex]; re-entering Capture later gets a new
+     * ViewModel (new back-stack entry) and therefore a new session, which is exactly the
+     * intended lifetime.
+     *
+     * A retake for a slot that doesn't exist in [existingFrames] is refused outright rather
+     * than quietly downgraded to a fresh session. WHY: the downgrade was silently destructive -
+     * it wiped every already-accepted frame, and (because [retakeSlot] then stayed null) made
+     * the nav layer push a *second* Preview entry on top of the one the retake came from. A
+     * caller asking to re-shoot slot N of a strip that has no slot N is a programming error in
+     * the caller, so fail visibly and change nothing.
+     */
+    fun startOnce(retakeSlotIndex: Int?, existingFrames: List<CaptureFrame>) {
+        if (started) return
+        if (retakeSlotIndex != null && retakeSlotIndex !in existingFrames.indices) {
+            // Spend the one-shot guard anyway: re-running this on the next recomposition would
+            // only repeat the same refusal. The user still has EXIT, and the Preview entry the
+            // request came from is untouched underneath, so nothing is lost.
+            started = true
+            _uiState.update {
+                it.copy(
+                    // Mark the entry a dead end. WITHOUT this the refusal is only skin-deep:
+                    // it leaves shooting = false and the queue empty, CaptureScreen keeps the
+                    // shutter enabled (it gates on !shooting), and one tap of SHOOT sends
+                    // onShutter() down its "empty queue = fresh session" path - wiping the very
+                    // frames this branch exists to protect, then pushing a duplicate Preview
+                    // entry because retakeSlot stayed null. Refusing has to disarm the shutter.
+                    sessionRefused = true,
+                    cameraState = CameraState.Unavailable,
+                    // Report the slot the caller actually asked for. frameLabel() is 1-based
+                    // padding over an arbitrary Int, so an out-of-range index would render a
+                    // nonsense frame number ("06" of a 2-frame strip); state the real problem.
+                    log = "Retake unavailable · this strip has only ${existingFrames.size} frame(s) · exit and try again.",
+                )
+            }
+            return
+        }
+        started = true
+        if (retakeSlotIndex != null) {
+            onStartRetake(retakeSlotIndex, existingFrames)
+        } else {
+            onStartSession()
+        }
+    }
+
     init {
-        // Keep cameraState in sync any time permission changes (e.g. the user grants it from
-        // a system prompt after we already requested it in onStartSession). Only upgrades
-        // Idle/RequestingPermission -> Live: once a session has already committed to Denied
-        // (see sessionUsesPlaceholder above), a late grant should apply to the *next* session,
-        // not silently flip cameraState under a queue that's already mid-flight.
-        viewModelScope.launch {
-            cameraController.hasCameraPermission.collect { granted ->
-                if (granted && _uiState.value.cameraState != CameraState.Live && !sessionUsesPlaceholder) {
-                    _uiState.update { it.copy(cameraState = CameraState.Live) }
+        observeCamera()
+    }
+
+    /**
+     * Re-points this ViewModel at the [CameraController] that is currently bound to the live
+     * lifecycle, and re-subscribes the permission/availability collectors to it. Cheap and
+     * idempotent (a same-instance call is a no-op), so the composition can call it
+     * unconditionally on every pass - which is exactly what PhotoboothNavHost does.
+     *
+     * WHY this exists: MainActivity builds a new AndroidCameraController in every `onCreate`,
+     * and there is no `android:configChanges` in the manifest, so a rotation mid-session means
+     * a brand-new controller instance. This ViewModel survives that rotation (it is scoped to a
+     * NavBackStackEntry), and the preview surface binds the *new* controller's ImageCapture to
+     * the *new* Activity's lifecycle. Without this hook we would keep driving the old,
+     * now-unbound controller: takePicture() throws, [capture]'s catch-all quietly turns every
+     * remaining exposure into a blank placeholder frame, and the bind result/[CameraController.cameraError]
+     * that would have explained it lands on the new controller nobody is listening to - so the
+     * viewfinder still claims "FRONT CAMERA LIVE" while producing nothing. It also stops us
+     * retaining the destroyed Activity (AndroidCameraController holds one) and firing
+     * requestCameraPermission() at a launcher registered against a dead Activity.
+     */
+    fun onCameraControllerChanged(controller: CameraController) {
+        if (controller === cameraController) return
+        cameraController = controller
+        observeCamera()
+    }
+
+    /** Subscribes the two "is the camera actually usable" collectors to whichever controller is
+     *  current, cancelling any previous controller's subscriptions first (see [cameraObserverJob]).
+     *  Both flows are StateFlows, so a swap immediately re-delivers the new controller's current
+     *  permission/error values rather than waiting for a change. */
+    private fun observeCamera() {
+        cameraObserverJob?.cancel()
+        val controller = cameraController
+        cameraObserverJob = viewModelScope.launch {
+            // Keep cameraState in sync any time permission changes (e.g. the user grants it from
+            // a system prompt after we already requested it in onStartSession). Only upgrades
+            // Idle/RequestingPermission -> Live: once a session has already committed to Denied
+            // (see sessionUsesPlaceholder above), a late grant should apply to the *next* session,
+            // not silently flip cameraState under a queue that's already mid-flight.
+            launch {
+                controller.hasCameraPermission.collect { granted ->
+                    if (granted && _uiState.value.cameraState != CameraState.Live && !sessionUsesPlaceholder) {
+                        _uiState.update { it.copy(cameraState = CameraState.Live) }
+                    }
+                }
+            }
+
+            // Camera *availability*, which permission alone doesn't tell us. ensureCameraReady()
+            // can only optimistically report Live once permission is granted - the real bind
+            // happens later, in the preview surface. Without this, a bind failure left the UI
+            // saying "FRONT CAMERA LIVE" while every exposure silently became a blank placeholder.
+            launch {
+                controller.cameraError.collect { error ->
+                    if (error != null && !sessionUsesPlaceholder) {
+                        _uiState.update {
+                            it.copy(
+                                cameraState = CameraState.Unavailable,
+                                log = "Camera unavailable — placeholder frames armed.",
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -76,6 +205,7 @@ class CaptureViewModel(
     fun onStartSession() {
         val count = _uiState.value.shotCount
         sessionUsesPlaceholder = false
+        retakeSlot = null
         _uiState.update {
             it.copy(
                 frames = List(count) { null },
@@ -85,26 +215,82 @@ class CaptureViewModel(
                 log = "",
             )
         }
-        launchSessionWork {
-            if (cameraController.hasCameraPermission.value) {
-                _uiState.update {
-                    it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-                }
-            } else {
-                _uiState.update { it.copy(cameraState = CameraState.RequestingPermission) }
-                cameraController.requestCameraPermission()
-                val granted = withTimeoutOrNull(10_000) {
-                    cameraController.hasCameraPermission.first { it }
-                }
-                if (granted == true) {
-                    _uiState.update {
-                        it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(cameraState = CameraState.Denied, log = "Camera unavailable — placeholder frames armed.")
-                    }
-                }
+        launchSessionWork { ensureCameraReady() }
+    }
+
+    /**
+     * Re-shoot exactly ONE slot of an already-finished session - the Preview screen's per-cell
+     * `RETAKE 0N` chip. Unlike [onStartSession] this deliberately does not clear anything:
+     * [existingFrames] is carried straight through and only [slotIndex] gets re-exposed, so the
+     * other accepted frames (and, one layer up, the user's treatment/frame-colour/layout
+     * choices) survive the round trip. Same "never append or shift, always the same slot"
+     * invariant [onShootAgain] enforces inside a running session.
+     *
+     * Arms a single-index queue rather than auto-firing - the user still taps the shutter,
+     * which then reads `SHOOT 0N` for that one frame (see [onRetake], whose shape this reuses).
+     */
+    fun onStartRetake(slotIndex: Int, existingFrames: List<CaptureFrame>) {
+        require(slotIndex in existingFrames.indices) {
+            "retake slot $slotIndex out of range for ${existingFrames.size} frames"
+        }
+        sessionUsesPlaceholder = false
+        retakeSlot = slotIndex
+        _uiState.update {
+            it.copy(
+                shotCount = existingFrames.size,
+                frames = existingFrames,
+                queue = listOf(slotIndex),
+                review = null,
+                sessionComplete = false,
+                log = "",
+            )
+        }
+        launchSessionWork { ensureCameraReady() }
+    }
+
+    /** Confirm or request camera access, falling back to placeholder mode if it never arrives.
+     *  Shared verbatim by [onStartSession] and [onStartRetake] - a retake needs exactly the
+     *  same camera bring-up as a fresh session, it just keeps the frames around. */
+    private suspend fun ensureCameraReady() {
+        if (cameraController.hasCameraPermission.value) {
+            markPermissionGranted()
+            return
+        }
+        _uiState.update { it.copy(cameraState = CameraState.RequestingPermission) }
+        cameraController.requestCameraPermission()
+        // The controller we actually asked through - pinned so the suspension below can't be
+        // re-targeted halfway.
+        val requestedOn = cameraController
+        val grantedByRequestedController = withTimeoutOrNull(10_000) {
+            requestedOn.hasCameraPermission.first { it }
+        }
+        // On timeout, re-read the *current* controller before declaring denial: rotating while
+        // the system permission dialog is up recreates the Activity, and the result is then
+        // delivered to the new Activity's launcher - i.e. to a controller onCameraControllerChanged
+        // swapped in while we were suspended on the old one's flow, which will now never emit.
+        // Without this re-check, a permission the user actually granted still times out into
+        // placeholder mode.
+        val granted = grantedByRequestedController ?: cameraController.hasCameraPermission.value
+        if (granted) {
+            markPermissionGranted()
+        } else {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Denied, log = "Camera unavailable — placeholder frames armed.")
+            }
+        }
+    }
+
+    /** Permission is granted, but that alone doesn't mean the camera opened - if a bind has
+     *  already failed (see the error collector in [observeCamera]), stay honest
+     *  rather than announcing a live camera that isn't. */
+    private fun markPermissionGranted() {
+        if (cameraController.cameraError.value != null) {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Unavailable, log = "Camera unavailable — placeholder frames armed.")
+            }
+        } else {
+            _uiState.update {
+                it.copy(cameraState = CameraState.Live, log = "Front camera live · tap shoot when ready.")
             }
         }
     }
@@ -113,6 +299,11 @@ class CaptureViewModel(
      *  session, queues every frame index. */
     fun onShutter() {
         if (_uiState.value.shooting) return
+        // A refused entry (out-of-range retake, see startOnce) must never start a session. This
+        // guard lives here as well as on the button's `enabled` because the ViewModel is the
+        // authority: the empty-queue branch below reads as "fresh session", so any future caller
+        // reaching onShutter() by another route would otherwise silently wipe the strip.
+        if (_uiState.value.sessionRefused) return
         if (_uiState.value.queue.isEmpty()) {
             val count = _uiState.value.shotCount
             _uiState.update { it.copy(queue = (0 until count).toList()) }
@@ -173,7 +364,11 @@ class CaptureViewModel(
     }
 
     private fun runQueue() {
-        sessionUsesPlaceholder = _uiState.value.cameraState == CameraState.Denied
+        // Both non-Live terminal states mean "no real pixels are coming" - freeze that in for
+        // the whole session so a strip can't end up half real photos, half placeholders.
+        sessionUsesPlaceholder = _uiState.value.cameraState.let {
+            it == CameraState.Denied || it == CameraState.Unavailable
+        }
         launchSessionWork {
             _uiState.update { it.copy(shooting = true) }
             processNextInQueue()
@@ -223,6 +418,7 @@ class CaptureViewModel(
     }
 
     override fun onCleared() {
+        super.onCleared()
         sessionJob?.cancel()
     }
 

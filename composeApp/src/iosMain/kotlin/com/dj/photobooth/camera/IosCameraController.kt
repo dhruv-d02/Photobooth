@@ -29,5 +29,11 @@ class IosCameraController : CameraController {
     private val _lensFacing = MutableStateFlow(LensFacing.Front)
     override val lensFacing: StateFlow<LensFacing> = _lensFacing.asStateFlow()
 
+    // Constantly null: this skeleton never attempts a real bind, so there is no bind failure
+    // to report. Permission stays denied above, which is what actually drives placeholder
+    // mode here. A real AVCaptureSession implementation should surface
+    // CameraError.BindFailed when startRunning() fails - part of the Phase 4 TODO above.
+    override val cameraError: StateFlow<CameraError?> = MutableStateFlow<CameraError?>(null).asStateFlow()
+
     override suspend fun capturePhoto(): ByteArray = ByteArray(0)
 }

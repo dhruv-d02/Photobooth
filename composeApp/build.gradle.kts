@@ -3,6 +3,18 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.compose.multiplatform)
+    // Phase 3: Room KMP (local history, uncapped per CLAUDE.md) needs its DAO/database
+    // codegen, hence KSP; the androidx.room plugin itself just wires schema export.
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
+}
+
+// Room KMP schema export. The generated JSON under schemas/ IS committed, deliberately: it's
+// the recorded shape of each shipped schema version, which is what lets Room detect a
+// destructive change at build time instead of silently dropping data on a future version bump,
+// and what a future migration test would diff against.
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 kotlin {
@@ -55,7 +67,21 @@ kotlin {
             // recomposition and, on Android, configuration changes) instead of a plain class
             // that only survives via `remember`.
             implementation(libs.androidx.lifecycle.viewmodel)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.androidx.lifecycle.runtime.compose)
+            // Phase 3: Room KMP (local history) + its bundled SQLite driver, so the same
+            // GalleryRepo/AppDatabase code runs on both targets without a platform-supplied
+            // SQLite (Android's framework one isn't available on iOS, so Room KMP always
+            // needs an explicit driver - bundled is the simplest cross-platform choice).
+            implementation(libs.androidx.room.runtime)
+            implementation(libs.androidx.sqlite.bundled)
+            // Date-stamp formatting for HistoryEntry.stamp / gallery cards (design/handoff/
+            // README.md's "JUL 25, 2026" format) - kotlin.time has no locale-aware month-name
+            // formatter, and hand-rolling one duplicates what this library already does well.
+            implementation(libs.kotlinx.datetime)
+            // Navigation-Compose (multiplatform): NavHost/NavController for the
+            // Booth/Shoot/Strips tab graph - architecture.md's decided nav library.
+            implementation(libs.navigation.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -67,6 +93,18 @@ kotlin {
         // this Android-specific test source set instead of commonTest.
         androidUnitTest.dependencies {
             implementation(libs.robolectric)
+            // ApplicationProvider.getApplicationContext() - GalleryRepoTest needs a real
+            // Context to build an in-memory Room database.
+            implementation(libs.androidx.test.core)
+            // Room's bundled SQLite driver (used in production, see AndroidAppDatabaseFactory)
+            // ships its native library as an Android-ABI .so meant to load from an APK's
+            // jniLibs - it can't load on a plain Windows/Linux/macOS JVM, which is what
+            // Robolectric tests actually run on (UnsatisfiedLinkError: no sqliteJni). The
+            // framework driver instead routes through android.database.sqlite, which
+            // Robolectric already shadows with a real native SQLite implementation for
+            // exactly this purpose - so tests use AndroidSQLiteDriver, production code
+            // doesn't change.
+            implementation(libs.androidx.sqlite.framework)
         }
     }
 }
@@ -77,7 +115,15 @@ android {
 
     defaultConfig {
         applicationId = "com.dj.photobooth"
-        minSdk = 26
+        // minSdk 29 (Android 10), not 26: the export path (AndroidMediaRepo) writes to the
+        // shared Pictures/ collection through MediaStore scoped storage, which only exists
+        // from API 29. On API 26-28 the same insert() requires the WRITE_EXTERNAL_STORAGE
+        // *runtime* permission - declaring it in the manifest isn't enough, it has to be
+        // requested at runtime, and this app has no such request flow. Rather than build and
+        // maintain a legacy-storage permission path for three EOL API levels, the floor moves
+        // to where scoped storage works permission-free. CameraX still supports 21+, so this
+        // is purely an export-path constraint.
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -105,4 +151,10 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
+    // Room KMP's DAO/database implementations are codegen'd per-target, not shared - each
+    // target needs its own KSP compiler invocation even though the @Entity/@Dao/@Database
+    // *declarations* they read live once in commonMain (gallery/AppDatabase.kt).
+    add("kspAndroid", libs.androidx.room.compiler)
+    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
 }

@@ -1,6 +1,7 @@
 package com.dj.photobooth.capture
 
 import com.dj.photobooth.camera.CameraController
+import com.dj.photobooth.camera.CameraError
 import com.dj.photobooth.camera.LensFacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +18,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -26,6 +28,7 @@ import kotlin.test.assertTrue
 private class FakeCameraController(
     granted: Boolean = true,
     private val autoGrantOnRequest: Boolean = true,
+    initialError: CameraError? = null,
 ) : CameraController {
     override val hasCameraPermission = MutableStateFlow(granted)
     var captureCount = 0
@@ -36,6 +39,11 @@ private class FakeCameraController(
     }
 
     override val lensFacing: StateFlow<LensFacing> = MutableStateFlow(LensFacing.Front)
+
+    /** Mutable so a test can simulate a bind failing *after* the session already started,
+     *  which is the real ordering: permission resolves first, the CameraX bind happens later
+     *  in the preview surface. */
+    override val cameraError = MutableStateFlow(initialError)
 
     var shouldThrowOnCapture = false
 
@@ -86,6 +94,137 @@ class CaptureViewModelTest {
         assertEquals(3, finalState.acceptedCount)
         assertNull(finalState.review)
         assertEquals(3, camera.captureCount)
+    }
+
+    @Test
+    fun `a camera that fails to bind arms placeholder mode instead of claiming live`() = runTest {
+        // Permission granted but the camera won't open - the emulator-with-no-front-lens and
+        // camera-held-by-another-app cases. Previously this reported "Front camera live" and
+        // then silently produced blank frames.
+        val camera = FakeCameraController(granted = true)
+        val viewModel = CaptureViewModel(camera, initialShotCount = 1)
+
+        viewModel.onStartSession()
+        runCurrent()
+        assertEquals(CameraState.Live, viewModel.uiState.value.cameraState, "live until a bind fails")
+
+        // The bind fails after the session started, as it does in reality.
+        camera.cameraError.value = CameraError.NoCameraAvailable
+        runCurrent()
+
+        assertEquals(CameraState.Unavailable, viewModel.uiState.value.cameraState)
+        assertTrue(viewModel.uiState.value.log.contains("placeholder", ignoreCase = true))
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        viewModel.onKeep()
+        advanceTimeBy(420 + 260)
+        runCurrent()
+
+        assertEquals(0, camera.captureCount, "an unusable camera must not be asked for pixels")
+        assertTrue(viewModel.uiState.value.frames.filterNotNull().all { it.isPlaceholder })
+    }
+
+    @Test
+    fun `a bind failure known before the session starts never reports live`() = runTest {
+        val camera = FakeCameraController(granted = true, initialError = CameraError.BindFailed)
+        val viewModel = CaptureViewModel(camera, initialShotCount = 1)
+
+        viewModel.onStartSession()
+        runCurrent()
+
+        assertEquals(CameraState.Unavailable, viewModel.uiState.value.cameraState)
+    }
+
+    @Test
+    fun `retake re-exposes only the targeted slot and keeps every other frame`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 3)
+        val existing = listOf(
+            CaptureFrame(jpegBytes = byteArrayOf(1)),
+            CaptureFrame(jpegBytes = byteArrayOf(2)),
+            CaptureFrame(jpegBytes = byteArrayOf(3)),
+        )
+
+        viewModel.onStartRetake(slotIndex = 1, existingFrames = existing)
+        runCurrent()
+
+        // Nothing cleared: all three frames are still present, only slot 1 is queued.
+        assertEquals(3, viewModel.uiState.value.acceptedCount)
+        assertEquals(listOf(1), viewModel.uiState.value.queue)
+        assertEquals(1, viewModel.retakeSlot)
+
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        assertEquals(1, viewModel.uiState.value.review?.index, "retake must review the same slot")
+        viewModel.onKeep()
+        advanceTimeBy(420 + 260)
+        runCurrent()
+
+        val frames = viewModel.uiState.value.frames
+        assertEquals(3, frames.size, "retake must never append or shift a slot")
+        assertEquals(existing[0], frames[0], "untouched slots must survive verbatim")
+        assertEquals(existing[2], frames[2], "untouched slots must survive verbatim")
+        assertTrue(frames[1] != existing[1], "the targeted slot must actually be replaced")
+        assertEquals(1, camera.captureCount, "a retake exposes exactly one frame")
+        assertTrue(viewModel.uiState.value.sessionComplete)
+    }
+
+    @Test
+    fun `startOnce is idempotent so a rotation cannot wipe accepted frames`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 2)
+
+        viewModel.startOnce(retakeSlotIndex = null, existingFrames = emptyList())
+        runCurrent()
+        viewModel.onShutter()
+        advanceThroughCountdownAndCapture()
+        viewModel.onKeep()
+        advanceTimeBy(420)
+        runCurrent()
+        assertEquals(1, viewModel.uiState.value.acceptedCount)
+
+        // Simulates the LaunchedEffect re-firing after a configuration change: the composition
+        // is rebuilt but this ViewModel is not, so a second start must be a no-op.
+        viewModel.startOnce(retakeSlotIndex = null, existingFrames = emptyList())
+        runCurrent()
+
+        assertEquals(1, viewModel.uiState.value.acceptedCount, "restarting must not clear frames")
+    }
+
+    @Test
+    fun `startOnce refuses an out-of-range retake instead of starting a fresh session`() = runTest {
+        val camera = FakeCameraController()
+        val viewModel = CaptureViewModel(camera, initialShotCount = 2)
+
+        // The nav layer handing over a stale slot with an empty/short frame list is a caller
+        // bug. It must not throw out of onStartRetake's require(), and - crucially - must not
+        // quietly downgrade to a fresh session, which used to wipe every accepted frame and
+        // then push a duplicate Preview entry because retakeSlot stayed null.
+        viewModel.startOnce(retakeSlotIndex = 5, existingFrames = emptyList())
+        runCurrent()
+
+        val refused = viewModel.uiState.value
+        assertTrue(refused.sessionRefused, "an out-of-range retake must mark the entry refused")
+        assertNull(viewModel.retakeSlot, "no retake mode should be entered")
+        assertEquals(0, refused.acceptedCount)
+        assertTrue(refused.queue.isEmpty(), "refusing must not queue any exposure")
+        assertFalse(refused.shooting, "refusing must not start shooting")
+        assertTrue(
+            refused.log.contains("Retake unavailable"),
+            "the refusal must be visible to the user, got: '${refused.log}'",
+        )
+
+        // The regression this pins: a refusal leaves shooting = false and an empty queue, which
+        // is exactly the state onShutter() reads as "fresh session, queue every frame". Without
+        // the sessionRefused guard the destructive fallback was only deferred by one tap.
+        viewModel.onShutter()
+        runCurrent()
+
+        val afterShutter = viewModel.uiState.value
+        assertTrue(afterShutter.queue.isEmpty(), "SHOOT after a refusal must not start a session")
+        assertFalse(afterShutter.shooting, "SHOOT after a refusal must not start shooting")
+        assertEquals(0, afterShutter.acceptedCount, "SHOOT after a refusal must not capture")
     }
 
     @Test

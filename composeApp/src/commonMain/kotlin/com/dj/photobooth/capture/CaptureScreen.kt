@@ -2,8 +2,10 @@ package com.dj.photobooth.capture
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,13 +16,16 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -47,12 +52,24 @@ import kotlinx.coroutines.withContext
  * The Capture screen (design/handoff/README.md § 2): full-bleed dark steel screen, no
  * bottom tab bar (a session is modal). Pure View in the MVVM sense - all state comes from
  * [viewModel]'s [CaptureUiState]; every tap just calls a ViewModel method.
+ *
+ * [onSessionComplete] fires once, with every accepted frame, the moment
+ * [CaptureUiState.sessionComplete] flips to true - i.e. right after the last queued frame is
+ * kept (see CaptureViewModel.processNextInQueue). It's how the NavHost (not built in this
+ * file) knows to transition from Capture to the Preview route once a session finishes;
+ * defaults to a no-op so existing call sites that don't care about this yet keep compiling.
+ *
+ * Starting the session is deliberately NOT done here: the caller picks between
+ * [CaptureViewModel.onStartSession] (fresh, clears every frame) and
+ * [CaptureViewModel.onStartRetake] (re-shoot one slot, keeps the rest), and only the NavHost
+ * knows which of those the user asked for. This screen stays a pure View either way.
  */
 @Composable
 fun CaptureScreen(
     viewModel: CaptureViewModel,
     cameraController: CameraController,
     onExitToLanding: () -> Unit,
+    onSessionComplete: (frames: List<CaptureFrame>) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     // Shared across every rememberDecodedFrame call site on this screen (see that function's
@@ -60,6 +77,14 @@ fun CaptureScreen(
     // thumbnail row - is decoded once, not twice.
     val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
+    LaunchedEffect(state.sessionComplete) {
+        if (state.sessionComplete) {
+            onSessionComplete(state.frames.filterNotNull())
+        }
+    }
+
+    // The dark surface itself stays full-bleed (design/handoff/README.md § 2), edge to edge
+    // behind both system bars - only the bars' *content* is inset, below.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -86,6 +111,9 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            // The screen behind stays full-bleed; only this bar's controls are pushed clear of
+            // the status bar, so EXIT stays tappable under edge-to-edge.
+            .statusBarsPadding()
             .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -157,7 +185,11 @@ private fun Viewfinder(
         Text(
             text = when (state.cameraState) {
                 CameraState.Live -> "FRONT CAMERA LIVE"
-                CameraState.Denied -> "PLACEHOLDER MODE"
+                // Both non-Live terminal states read as PLACEHOLDER MODE - the design's
+                // viewfinder caption vocabulary (design/handoff/README.md § 2) is only
+                // LIVE / PLACEHOLDER MODE / CONNECTING…, and from the user's point of view
+                // "you declined" and "the camera won't open" have the same consequence here.
+                CameraState.Denied, CameraState.Unavailable -> "PLACEHOLDER MODE"
                 CameraState.RequestingPermission -> "CONNECTING…"
                 CameraState.Idle -> "CONNECTING…"
             },
@@ -268,66 +300,92 @@ private fun CaptureBottomBar(
     onShootAgain: () -> Unit,
     decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
-        verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
+    // WHAT: thumbnails + controls fade and collapse away while a frame is actively counting
+    // down/exposing, giving the viewfinder the full remaining height, then reappear the instant
+    // the proof overlay has something to show (or immediately, if idle).
+    //
+    // WHY this deliberately departs from design/handoff/README.md:120-122 (which keeps this row
+    // visible throughout, the shutter merely relabelled "EXPOSING…", per CLAUDE.md's "visual
+    // design is final and pixel-faithful"): a maintainer decision, not a default - see PR
+    // discussion. `state.shooting` alone can't gate this: CaptureViewModel.processNextInQueue
+    // holds it true for the ENTIRE session, review included, so gating on it alone would also
+    // hide SHOOT AGAIN / KEEP·NEXT while the user is deciding. Only the "nothing to review yet"
+    // window - countdown, flash, capture, and the inter-frame pause - should hide.
+    val isExposing = state.shooting && state.review == null
+
+    AnimatedVisibility(
+        visible = !isExposing,
+        enter = fadeIn(tween(150)) + expandVertically(tween(150)),
+        exit = fadeOut(tween(150)) + shrinkVertically(tween(150)),
     ) {
-        ThumbnailRow(state = state, decodedFrameCache = decodedFrameCache)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                // Capture hides the tab bar (a session is modal), so nothing else reserves the
+                // gesture-bar space that the shutter/KEEP buttons would otherwise sit under.
+                .navigationBarsPadding()
+                .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
+            verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
+        ) {
+            ThumbnailRow(state = state, decodedFrameCache = decodedFrameCache)
 
-        if (state.review != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge)) {
-                OutlinedButton(
-                    onClick = onShootAgain,
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.GhostBorderOnDark),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
-                ) { Text("SHOOT AGAIN", style = PhotoboothType.heading18) }
+            if (state.review != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge)) {
+                    OutlinedButton(
+                        onClick = onShootAgain,
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.GhostBorderOnDark),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
+                    ) { Text("SHOOT AGAIN", style = PhotoboothType.heading18) }
 
-                val isLastFrame = state.queue.size <= 1
-                Button(
-                    onClick = onKeep,
-                    modifier = Modifier.weight(1.4f).height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PhotoboothColors.OnDarkAccent,
-                        contentColor = PhotoboothColors.DarkSurface,
-                    ),
-                ) { Text(if (isLastFrame) "KEEP" else "KEEP · NEXT", style = PhotoboothType.heading18) }
-            }
-            // design/handoff/README.md lines 125-126: "Below them, the log line as centred
-            // monospace 10px #9ebbd8" - missing entirely before this fix, so log messages
-            // like "Frame 02 discarded · shooting again." never reached the user in review.
-            Text(
-                state.log,
-                style = PhotoboothType.meta10,
-                color = PhotoboothColors.OnDarkSecondaryText,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            )
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    val isLastFrame = state.queue.size <= 1
+                    Button(
+                        onClick = onKeep,
+                        modifier = Modifier.weight(1.4f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PhotoboothColors.OnDarkAccent,
+                            contentColor = PhotoboothColors.DarkSurface,
+                        ),
+                    ) { Text(if (isLastFrame) "KEEP" else "KEEP · NEXT", style = PhotoboothType.heading18) }
+                }
+                // design/handoff/README.md lines 125-126: "Below them, the log line as centred
+                // monospace 10px #9ebbd8" - missing entirely before this fix, so log messages
+                // like "Frame 02 discarded · shooting again." never reached the user in review.
                 Text(
                     state.log,
-                    style = PhotoboothType.body11,
+                    style = PhotoboothType.meta10,
                     color = PhotoboothColors.OnDarkSecondaryText,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
-                val shutterLabel = when {
-                    state.shooting -> "EXPOSING…"
-                    state.queue.size == 1 && state.acceptedCount > 0 -> "SHOOT ${state.frameLabel(state.queue.first())}"
-                    else -> "SHOOT ${state.shotCount}"
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        state.log,
+                        style = PhotoboothType.body11,
+                        color = PhotoboothColors.OnDarkSecondaryText,
+                        modifier = Modifier.weight(1f),
+                    )
+                    val shutterLabel = when {
+                        state.shooting -> "EXPOSING…"
+                        state.queue.size == 1 && state.acceptedCount > 0 -> "SHOOT ${state.frameLabel(state.queue.first())}"
+                        else -> "SHOOT ${state.shotCount}"
+                    }
+                    Button(
+                        onClick = onShutter,
+                        // Disabled while exposing, and permanently once the entry has been refused
+                        // (out-of-range retake): a refusal leaves shooting = false and an empty
+                        // queue, which onShutter() would otherwise read as "start a fresh session"
+                        // and wipe the strip the refusal was protecting. EXIT is the only way out.
+                        enabled = !state.shooting && !state.sessionRefused,
+                        modifier = Modifier.size(width = 150.dp, height = 56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PhotoboothColors.Paper,
+                            contentColor = PhotoboothColors.DarkSurface,
+                            disabledContainerColor = PhotoboothColors.DisabledOnDark,
+                        ),
+                    ) { Text(shutterLabel, style = PhotoboothType.heading18) }
                 }
-                Button(
-                    onClick = onShutter,
-                    enabled = !state.shooting,
-                    modifier = Modifier.size(width = 150.dp, height = 56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PhotoboothColors.Paper,
-                        contentColor = PhotoboothColors.DarkSurface,
-                        disabledContainerColor = PhotoboothColors.DisabledOnDark,
-                    ),
-                ) { Text(shutterLabel, style = PhotoboothType.heading18) }
             }
         }
     }

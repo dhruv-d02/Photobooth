@@ -6,6 +6,19 @@ import kotlinx.coroutines.flow.StateFlow
 enum class LensFacing { Front, Back }
 
 /**
+ * Why the camera can't be used, when permission alone doesn't explain it. Deliberately
+ * separate from `hasCameraPermission == false`: the user declining is a different situation
+ * from the hardware simply not being there, and only the latter is unrecoverable by asking
+ * again.
+ *
+ * [NoCameraAvailable] - the requested lens doesn't exist on this device at all (an emulator
+ * with `hw.camera.front=none`, a desktop-style device with no front camera).
+ * [BindFailed] - the lens exists but couldn't be opened: driver error, another app already
+ * holding it, or CameraX provider initialisation failing.
+ */
+enum class CameraError { NoCameraAvailable, BindFailed }
+
+/**
  * Platform camera access, behind a plain interface rather than expect/actual - CameraX
  * (Android) and AVFoundation (iOS) are different enough that a shared implementation makes
  * no sense, but the interface itself doesn't need expect/actual machinery: each platform's
@@ -24,6 +37,15 @@ interface CameraController {
      *  README.md's Capture screen has no front/back toggle control, so there's no mutator
      *  here yet; add one only when a real caller (a UI control) needs it. */
     val lensFacing: StateFlow<LensFacing>
+
+    /**
+     * Non-null once the platform has actually failed to open the camera, null while it is
+     * fine or not yet attempted. Set by whichever layer performs the real bind (on Android
+     * that's CameraPreviewSurface, since CameraX binds to a LifecycleOwner the controller
+     * doesn't have), and observed by CaptureViewModel so a session can arm placeholder mode
+     * honestly instead of reporting "front camera live" while every exposure silently fails.
+     */
+    val cameraError: StateFlow<CameraError?>
 
     /**
      * Captures one exposure and returns JPEG-encoded bytes, mirrored horizontally to match

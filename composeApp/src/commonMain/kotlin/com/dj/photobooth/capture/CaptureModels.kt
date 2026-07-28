@@ -23,8 +23,16 @@ data class CaptureFrame(val jpegBytes: ByteArray, val isPlaceholder: Boolean = f
     override fun hashCode(): Int = 31 * jpegBytes.contentHashCode() + isPlaceholder.hashCode()
 }
 
-/** Whether the live camera is available, still being requested, or unavailable/denied. */
-enum class CameraState { Idle, RequestingPermission, Live, Denied }
+/**
+ * Whether the live camera is available, still being requested, or unusable.
+ *
+ * [Denied] and [Unavailable] both land the session in placeholder mode but mean different
+ * things: [Denied] is the user refusing permission (recoverable - they can grant it later),
+ * [Unavailable] is the camera itself failing to open despite permission being granted (see
+ * [com.dj.photobooth.camera.CameraError]). Keeping them apart matters because only [Denied]
+ * is worth re-prompting for.
+ */
+enum class CameraState { Idle, RequestingPermission, Live, Denied, Unavailable }
 
 /** The just-captured frame awaiting KEEP or SHOOT AGAIN, per design/handoff/README.md § 2. */
 data class ReviewState(val index: Int, val frame: CaptureFrame)
@@ -40,6 +48,13 @@ data class CaptureUiState(
     val cameraState: CameraState = CameraState.Idle,
     val log: String = "",
     val sessionComplete: Boolean = false,
+    // WHAT: this Capture entry refused to start anything (see CaptureViewModel.startOnce's
+    // out-of-range retake branch) and is a dead end - EXIT is the only way out.
+    // WHY it exists rather than reusing `shooting`/`sessionComplete`: a refusal leaves
+    // shooting = false and the queue empty, which is precisely the state onShutter() treats as
+    // "fresh session, queue every frame". Without a distinct flag the refusal only defers the
+    // silently-destructive fallback by one shutter tap instead of removing it.
+    val sessionRefused: Boolean = false,
 ) {
     /** Zero-padded 1-based frame count, e.g. "02" - the label format used throughout the design. */
     fun frameLabel(index: Int): String = (index + 1).toString().padStart(2, '0')

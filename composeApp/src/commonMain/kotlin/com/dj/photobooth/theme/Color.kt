@@ -34,6 +34,9 @@ object PhotoboothColors {
     val HairlineOnLight = TextPrimary.copy(alpha = 0x29 / 255f)
     val HairlineOnDarkSubtle = Paper.copy(alpha = 0x26 / 255f)
     val HairlineOnDark = Paper.copy(alpha = 0x33 / 255f)
+    // #1d1f2033 - slightly stronger than HairlineOnLight (#1d1f2029), used only for the
+    // Gallery empty state's dashed box (design/handoff/README.md §4).
+    val HairlineDashed = TextPrimary.copy(alpha = 0x33 / 255f)
     val SurfaceWashTranslucent = SurfaceWash.copy(alpha = 0x66 / 255f)
 
     // Capture-screen-specific alpha variants (design/handoff/README.md § 2) - named here so
@@ -45,6 +48,10 @@ object PhotoboothColors {
     val DisabledOnDark = Paper.copy(alpha = 0.45f) // "opacity .45 when disabled"
     val CaptionOnDark = Paper.copy(alpha = 0.8f) // viewfinder corner captions - not a doc-specified exact value, a readable default
     val ProofScrimApprox = DarkSurface.copy(alpha = 0.9f) // flat-alpha stand-in for the doc's linear-gradient(#1d2d3de6, #1d2d3d00) scrim - TODO(phase-2): real gradient once a Brush-based header is worth the complexity
+
+    // Landing screen (design/handoff/README.md § 1, variant 1a): "a faint 27.2px grid
+    // (#1d1f2008 1px lines both axes)" drawn behind the whole light-ground screen.
+    val GridLineOnLight = TextPrimary.copy(alpha = 0x08 / 255f)
 }
 
 // Frame-color presets (Paper/Steel/Ink/Sky) now live in filter.FrameColorPreset, built on

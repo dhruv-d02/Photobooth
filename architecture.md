@@ -222,8 +222,8 @@ A dedicated Compose theme/token module is required before Phase 1 screens are bu
 ## Non-functional considerations
 
 - **iOS builds require a Mac** — not yet available. Android leads development; revisit iOS bring-up once Mac/cloud-CI access (e.g. Codemagic, which supports KMP/CMP iOS signing without local Mac hardware) is sorted.
-- **Min OS versions**: Android `minSdk = 26` (for CameraX compatibility, without excluding older devices unnecessarily); iOS 15+ as the practical floor for current Compose Multiplatform support.
-- **Permissions/privacy strings**: `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription` (iOS); `CAMERA` + scoped MediaStore writes (Android, no broad storage permission needed on API 26+).
+- **Min OS versions**: Android `minSdk = 29` — the constraint is the export path, not the camera: MediaStore scoped storage only exists from API 29, and on API 26-28 the same `insert()` needs the `WRITE_EXTERNAL_STORAGE` *runtime* permission (a manifest declaration alone throws `SecurityException`). CameraX itself supports 21+. iOS 15+ as the practical floor for current Compose Multiplatform support.
+- **Permissions/privacy strings**: `NSCameraUsageDescription`, `NSPhotoLibraryAddUsageDescription` (iOS); `CAMERA` + scoped MediaStore writes (Android, no broad storage permission needed on API 29+).
 - **Shutter sound legality**: Japan/South Korea require a non-disableable shutter sound — build this in from day one.
 - **Storage growth**: fully-local, uncapped history — the Gallery screen needs delete from v1 (no automatic eviction, unlike the prototype's 12-item cap).
 - **Performance**: capture-loop and Skia filter/composite work must run off the main thread (`Dispatchers.Default`/IO); generate downsampled thumbnails for the Gallery grid instead of loading full-res images.
