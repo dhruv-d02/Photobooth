@@ -24,9 +24,25 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
+        <!-- Locked portrait: design/handoff/README.md has no landscape spec for any screen
+             (every layout, spacing figure and strip-composition formula assumes a vertical
+             phone frame), and CLAUDE.md calls the visual design final and pixel-faithful -
+             inventing a landscape layout would be a design decision, not a bug fix. Concrete
+             failure this also closes: Capture's bottom bar sizes its thumbnail row from screen
+             WIDTH via weight+aspectRatio, so in landscape the row's height roughly doubles while
+             the screen's available height more than halves, squeezing the weighted viewfinder
+             Box to zero height - the camera preview simply had nowhere to draw.
+
+             This does NOT make CaptureViewModel's rotation-survival work
+             (SessionHandoffViewModel, onCameraControllerChanged, startOnce's loud refusal on an
+             out-of-range retake) redundant: dark-mode toggles, system font/display-size changes,
+             split-screen resize and locale changes all still recreate the Activity without a
+             rotation, and would hit the identical stale-controller/lost-session-state bugs those
+             fixes address. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="portrait"
             android:theme="@android:style/Theme.Material.Light.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
