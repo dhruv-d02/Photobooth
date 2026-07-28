@@ -166,6 +166,7 @@ class StripDetailViewModelTest {
         )
         runCurrent()
 
+        viewModel.onDeleteRequested()
         viewModel.onDeleteConfirmed()
         runCurrent()
 
@@ -174,6 +175,20 @@ class StripDetailViewModelTest {
         assertTrue(repo.deleted.isNotEmpty(), "the row must still be removed")
         assertTrue(viewModel.uiState.value.deleted)
         assertNull(viewModel.uiState.value.message)
+    }
+
+    @Test
+    fun `confirming a delete that was never requested is a no-op`() = runTest {
+        val repo = DetailFakeGalleryRepo()
+        repo.save(entry(id = 1))
+        val viewModel = StripDetailViewModel(entryId = 1, repo = repo, mediaRepo = DetailFakeMediaRepo())
+        runCurrent()
+
+        viewModel.onDeleteConfirmed() // no onDeleteRequested() first
+        runCurrent()
+
+        assertTrue(repo.deleted.isEmpty(), "must not delete without confirmingDelete having been set")
+        assertFalse(viewModel.uiState.value.deleted)
     }
 
     @Test

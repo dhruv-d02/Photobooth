@@ -72,10 +72,15 @@ class StripDetailViewModel(
      * failed, a HistoryEntry would keep pointing at a file that no longer exists - a
      * permanently broken card. Doing the row first leaves only a harmless orphaned file as the
      * failure mode, not a broken one.
+     *
+     * Guarded on [StripDetailUiState.confirmingDelete], not just [StripDetailUiState.isDeleting]
+     * - this is the one irreversible action in the app, so the invariant that it can only fire
+     * once the confirm dialog is actually showing lives here rather than relying on the dialog
+     * being the only caller.
      */
     fun onDeleteConfirmed() {
         val entry = _uiState.value.entry ?: return
-        if (_uiState.value.isDeleting) return
+        if (!_uiState.value.confirmingDelete || _uiState.value.isDeleting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true) }
             try {
