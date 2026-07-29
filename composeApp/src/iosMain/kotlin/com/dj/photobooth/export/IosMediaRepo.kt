@@ -64,6 +64,15 @@ class IosMediaRepo : MediaRepo {
             "iOS copyToDevice needs IosMediaRepo.savePng to return a real PHAsset identifier first"
         )
 
+    /** TODO(phase-4, needs Mac/cloud-CI): same blocker as [copyToDevice] - unimplementable
+     *  until [savePng] returns a real PHAsset localIdentifier instead of echoing [displayName]
+     *  back, since PHAssetChangeRequest.deleteAssets needs an actual PHAsset reference to
+     *  delete, not a display name. */
+    override suspend fun delete(path: String): Unit =
+        throw UnsupportedOperationException(
+            "iOS delete needs IosMediaRepo.savePng to return a real PHAsset identifier first"
+        )
+
     /** Photos-library authorization is a prerequisite for [savePng] - surfaced separately so
      *  a future caller can gate the SAVE PNG button on it, same shape as
      *  CameraController.hasCameraPermission. */

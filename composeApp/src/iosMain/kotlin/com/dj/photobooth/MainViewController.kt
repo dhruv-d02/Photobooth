@@ -3,7 +3,6 @@ package com.dj.photobooth
 import androidx.compose.ui.window.ComposeUIViewController
 import com.dj.photobooth.camera.IosCameraController
 import com.dj.photobooth.export.IosMediaRepo
-import com.dj.photobooth.export.IosMediaViewer
 import com.dj.photobooth.export.IosShareSheet
 import com.dj.photobooth.gallery.GalleryRepo
 import com.dj.photobooth.gallery.IosAppDatabaseFactory
@@ -30,6 +29,5 @@ fun MainViewController(): UIViewController = ComposeUIViewController {
         galleryRepo = galleryRepo,
         mediaRepo = IosMediaRepo(),
         shareSheet = IosShareSheet(),
-        mediaViewer = IosMediaViewer(),
     )
 }

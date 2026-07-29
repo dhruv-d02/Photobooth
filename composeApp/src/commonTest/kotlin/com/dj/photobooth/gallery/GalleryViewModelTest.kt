@@ -1,7 +1,6 @@
 package com.dj.photobooth.gallery
 
 import com.dj.photobooth.export.MediaRepo
-import com.dj.photobooth.export.MediaViewer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +15,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** An in-memory GalleryRepo double, mirroring CaptureViewModelTest's FakeCameraController -
@@ -40,6 +38,7 @@ private class FakeGalleryRepo : GalleryRepo {
 
 private class FakeMediaRepo(private val shouldThrow: Boolean = false) : MediaRepo {
     var lastCopiedSource: String? = null
+    val deletedPaths = mutableListOf<String>()
 
     override suspend fun savePng(pngBytes: ByteArray, displayName: String): String =
         "content://media/$displayName"
@@ -49,13 +48,18 @@ private class FakeMediaRepo(private val shouldThrow: Boolean = false) : MediaRep
         lastCopiedSource = sourcePath
         return "content://media/$displayName"
     }
+
+    override suspend fun delete(path: String) {
+        deletedPaths += path
+    }
 }
 
-private class FakeMediaViewer : MediaViewer {
-    var lastOpenedPath: String? = null
-    override suspend fun openImage(mediaPath: String) {
-        lastOpenedPath = mediaPath
-    }
+/** A MediaRepo whose file delete always fails - used to prove onDelete still removes the
+ *  archive row even when the underlying-file cleanup can't complete. */
+private class ThrowingDeleteMediaRepo : MediaRepo {
+    override suspend fun savePng(pngBytes: ByteArray, displayName: String) = "unused"
+    override suspend fun copyToDevice(sourcePath: String, displayName: String) = "unused"
+    override suspend fun delete(path: String): Unit = error("simulated delete failure")
 }
 
 private fun entry(id: Long, createdAt: Long) = HistoryEntry(
@@ -70,8 +74,7 @@ private fun entry(id: Long, createdAt: Long) = HistoryEntry(
 private fun newViewModel(
     repo: GalleryRepo,
     mediaRepo: MediaRepo = FakeMediaRepo(),
-    mediaViewer: MediaViewer? = null,
-) = GalleryViewModel(repo = repo, mediaRepo = mediaRepo, mediaViewer = mediaViewer)
+) = GalleryViewModel(repo = repo, mediaRepo = mediaRepo)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GalleryViewModelTest {
@@ -108,17 +111,32 @@ class GalleryViewModelTest {
     }
 
     @Test
-    fun `delete removes only the targeted entry`() = runTest {
+    fun `delete removes only the targeted entry, and its underlying file`() = runTest {
         val repo = FakeGalleryRepo()
         repo.save(entry(id = 1, createdAt = 1))
         repo.save(entry(id = 2, createdAt = 2))
-        val viewModel = newViewModel(repo)
+        val mediaRepo = FakeMediaRepo()
+        val viewModel = newViewModel(repo, mediaRepo = mediaRepo)
         runCurrent()
 
         viewModel.onDelete(entry(id = 1, createdAt = 1))
         runCurrent()
 
         assertEquals(listOf(2L), viewModel.uiState.value.entries.map { it.id })
+        assertEquals(listOf("content://strip/1"), mediaRepo.deletedPaths)
+    }
+
+    @Test
+    fun `delete succeeds even if the underlying file can't be removed`() = runTest {
+        val repo = FakeGalleryRepo()
+        repo.save(entry(id = 1, createdAt = 1))
+        val viewModel = newViewModel(repo, mediaRepo = ThrowingDeleteMediaRepo())
+        runCurrent()
+
+        viewModel.onDelete(entry(id = 1, createdAt = 1))
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.entries.isEmpty(), "the row must still be gone even if file cleanup failed")
     }
 
     @Test
@@ -147,31 +165,5 @@ class GalleryViewModelTest {
         runCurrent()
 
         assertNotNull(viewModel.uiState.value.message)
-    }
-
-    @Test
-    fun `opening an entry hands its path to the platform viewer`() = runTest {
-        val repo = FakeGalleryRepo()
-        repo.save(entry(id = 1, createdAt = 1))
-        val viewer = FakeMediaViewer()
-        val viewModel = newViewModel(repo, mediaViewer = viewer)
-        runCurrent()
-
-        viewModel.onOpen(entry(id = 1, createdAt = 1))
-        runCurrent()
-
-        assertEquals("content://strip/1", viewer.lastOpenedPath)
-    }
-
-    @Test
-    fun `opening without a wired viewer is a no-op, not a crash`() = runTest {
-        val repo = FakeGalleryRepo()
-        val viewModel = newViewModel(repo) // no MediaViewer passed
-        runCurrent()
-
-        viewModel.onOpen(entry(id = 1, createdAt = 1)) // must not throw
-        runCurrent()
-
-        assertNull(viewModel.uiState.value.message)
     }
 }

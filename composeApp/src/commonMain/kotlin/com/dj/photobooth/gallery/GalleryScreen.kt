@@ -49,11 +49,14 @@ import com.dj.photobooth.ui.CornerTicks
  * sense, mirroring CaptureScreen/StripPreviewScreen - all state from [viewModel]'s
  * [GalleryUiState], every tap calls a ViewModel method.
  *
- * Both card actions are terminal (save a copy, hand off to the system gallery app), so unlike
- * the other screens this one needs no navigation callbacks at all.
+ * SAVE is terminal (writes another copy to device storage); tapping a card is navigation, not
+ * a ViewModel action - [onOpenEntry] is the seam, same shape as CaptureScreen's
+ * onExitToLanding/onSessionComplete - so the nav layer (not this screen) decides where "open"
+ * goes, which is what lets it open the in-app Strip Detail viewer instead of the platform's own
+ * gallery app.
  */
 @Composable
-fun GalleryScreen(viewModel: GalleryViewModel) {
+fun GalleryScreen(viewModel: GalleryViewModel, onOpenEntry: (HistoryEntry) -> Unit) {
     val state by viewModel.uiState.collectAsState()
 
     // statusBarsPadding: the NavHost deliberately applies no blanket status-bar inset (it
@@ -91,7 +94,7 @@ fun GalleryScreen(viewModel: GalleryViewModel) {
                 items(state.entries, key = { it.id }) { entry ->
                     GalleryCard(
                         entry = entry,
-                        onOpen = { viewModel.onOpen(entry) },
+                        onOpen = { onOpenEntry(entry) },
                         onSave = { viewModel.onSaveCopy(entry) },
                     )
                 }

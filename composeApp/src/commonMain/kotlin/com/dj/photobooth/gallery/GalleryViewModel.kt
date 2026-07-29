@@ -3,7 +3,6 @@ package com.dj.photobooth.gallery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.photobooth.export.MediaRepo
-import com.dj.photobooth.export.MediaViewer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,15 +17,12 @@ import kotlinx.coroutines.launch
 /**
  * MVVM ViewModel for the Gallery screen. Mostly a thin reshape of [GalleryRepo.entries], which
  * is already a reactive, newest-first, uncapped Flow (CLAUDE.md: no eviction limit, deletion
- * is manual only), plus the two per-card actions.
- *
- * [mediaViewer] is nullable so the screen can be exercised standalone (or in tests) without a
- * platform viewer wired in - same shape as the previously-optional ShareSheet.
+ * is manual only), plus the per-card SAVE action. Tapping a card is navigation, not a
+ * ViewModel action - see StripDetailViewModel, which the nav layer opens instead.
  */
 class GalleryViewModel(
     private val repo: GalleryRepo,
     private val mediaRepo: MediaRepo,
-    private val mediaViewer: MediaViewer? = null,
 ) : ViewModel() {
 
     /**
@@ -62,11 +58,20 @@ class GalleryViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, GalleryUiState())
 
-    /** Manual deletion only - see [GalleryRepo.delete]'s doc comment. No UI surfaces this yet
-     *  (the design specifies no delete affordance); kept so the capability exists the moment
-     *  one is designed. */
+    /** Manual deletion only - see [GalleryRepo.delete]'s doc comment. No affordance in the
+     *  Gallery grid itself surfaces this (see StripDetailViewModel.onDeleteConfirmed for the
+     *  DELETE button); kept here too so the capability exists wherever a HistoryEntry is held.
+     *
+     *  Removes the archive row first - that's what makes the strip disappear from the Gallery
+     *  grid, the user-visible meaning of "deleted" - then best-effort removes the underlying
+     *  file. A failure in that second step just leaves a harmless orphaned file in device
+     *  storage rather than a HistoryEntry pointing at nothing, so it's swallowed rather than
+     *  surfaced (there's no UI here to surface it to anyway). */
     fun onDelete(entry: HistoryEntry) {
-        viewModelScope.launch { repo.delete(entry) }
+        viewModelScope.launch {
+            repo.delete(entry)
+            runCatching { mediaRepo.delete(entry.finalImagePath) }
+        }
     }
 
     /**
@@ -84,21 +89,6 @@ class GalleryViewModel(
                 throw e
             } catch (e: Exception) {
                 showTransiently(e.message ?: "save failed")
-            }
-        }
-    }
-
-    /** Tapping a card hands the image to the platform's own gallery app rather than opening a
-     *  viewer screen this app would have to build - see [MediaViewer]. */
-    fun onOpen(entry: HistoryEntry) {
-        val viewer = mediaViewer ?: return
-        viewModelScope.launch {
-            try {
-                viewer.openImage(entry.finalImagePath)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                showTransiently("couldn't open this strip")
             }
         }
     }
