@@ -1,22 +1,23 @@
 package com.dj.photobooth.filter
 
+import androidx.compose.ui.graphics.Color
 import com.dj.photobooth.theme.PhotoboothColors
 
 /**
- * Frame-color presets - the strip/grid background choices (design/handoff/README.md's
- * Design Tokens § Frame options). This is Phase 2 work, not Phase 0 scaffolding (CLAUDE.md's
- * build sequence), which is why it wasn't defined back when theme/Color.kt was first
- * written - see that file's comment for the historical note.
+ * Frame-color presets - the strip/grid mount background choices (design/handoff/README.md's
+ * Design Tokens § "Frame color presets", confirmed against the dc.html prototype's `FRAMES`
+ * table). [dim] is the mount's footer dashed-rule color (the dc.html's `rule` field) - a
+ * translucent tint of whichever of [text]'s two contrast families reads against [background].
  */
 enum class FrameColorPreset(
-    val background: androidx.compose.ui.graphics.Color,
-    val text: androidx.compose.ui.graphics.Color,
-    val dim: androidx.compose.ui.graphics.Color,
+    val background: Color,
+    val text: Color,
+    val dim: Color,
 ) {
-    Paper(PhotoboothColors.Paper, PhotoboothColors.TextPrimary, PhotoboothColors.TextMuted),
-    Steel(PhotoboothColors.AccentDeeper, PhotoboothColors.Paper, PhotoboothColors.AccentTintStrong),
-    Ink(PhotoboothColors.Ink, PhotoboothColors.Paper, PhotoboothColors.OnInkSecondaryText),
-    Sky(PhotoboothColors.AccentTintMedium, PhotoboothColors.DarkSurface, PhotoboothColors.AccentPressed),
+    Butter(Color(0xFFFFC53D), PhotoboothColors.Ink, PhotoboothColors.Ink.copy(alpha = 0.3f)),
+    Bubblegum(Color(0xFFFF6FBB), PhotoboothColors.Cream, PhotoboothColors.Cream.copy(alpha = 0.4f)),
+    Grape(PhotoboothColors.Purple, PhotoboothColors.Cream, PhotoboothColors.Cream.copy(alpha = 0.4f)),
+    Spearmint(Color(0xFF7FEBD1), PhotoboothColors.Ink, PhotoboothColors.Ink.copy(alpha = 0.3f)),
 }
 
 /** Strip = classic vertical photobooth strip (1 column). Grid = 2x2. Both ship in v1. */

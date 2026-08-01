@@ -5,18 +5,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.ui.graphics.ImageBitmap
 import com.dj.photobooth.capture.CaptureFrame
 import com.dj.photobooth.compose.decodeJpegToImageBitmap
-import com.dj.photobooth.compose.encodeImageBitmapToPng
-import com.dj.photobooth.export.MediaRepo
-import com.dj.photobooth.export.ShareSheet
 import com.dj.photobooth.filter.FilmTreatment
 import com.dj.photobooth.filter.FrameColorPreset
 import com.dj.photobooth.filter.StripCompositor
 import com.dj.photobooth.filter.StripLayout
-import com.dj.photobooth.gallery.GalleryRepo
-import com.dj.photobooth.gallery.HistoryEntry
 import com.dj.photobooth.gallery.currentDateStamp
-import com.dj.photobooth.gallery.currentEpochMillis
-import kotlinx.coroutines.CancellationException
+import com.dj.photobooth.theme.Brand
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,18 +38,20 @@ import kotlinx.coroutines.withContext
  * "same slot index, never append/shift" invariant CaptureViewModel.onKeep/onShootAgain already
  * enforce for the main capture loop.
  *
- * [workDispatcher] is where JPEG decode / Skia compositing / PNG encode actually run
- * (Dispatchers.Default by default, off the main/Compose thread per architecture.md's
- * "Performance" non-functional note) - injectable so tests can pass the same single test
- * dispatcher used for viewModelScope, making the whole decode-then-compose pipeline advance
- * deterministically under runTest's virtual clock instead of racing a real background thread.
+ * [workDispatcher] is where JPEG decode / Skia compositing actually run (Dispatchers.Default by
+ * default, off the main/Compose thread per architecture.md's "Performance" non-functional
+ * note) - injectable so tests can pass the same single test dispatcher used for
+ * viewModelScope, making the whole decode-then-compose pipeline advance deterministically under
+ * runTest's virtual clock instead of racing a real background thread.
+ *
+ * **Save/share is not this class's job.** Customize's "continue" hands the already-composed
+ * [StripPreviewUiState.composedImage] off to a new Share screen/ShareViewModel instead of
+ * saving inline (see SessionHandoffViewModel.ComposedStrip) - this class only ever owns
+ * decode/compose/style-selection, never PNG-encoding, MediaRepo, or GalleryRepo.
  */
 class StripPreviewViewModel(
     initialFrames: List<CaptureFrame>,
-    private val galleryRepo: GalleryRepo,
-    private val mediaRepo: MediaRepo,
-    private val shareSheet: ShareSheet? = null,
-    brand: String = "Photobooth",
+    brand: String = Brand.NAME,
     private val workDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
@@ -81,19 +77,19 @@ class StripPreviewViewModel(
 
     fun onLayoutChange(layout: StripLayout) {
         if (_uiState.value.layout == layout) return
-        _uiState.update { it.copy(layout = layout, saved = false) }
+        _uiState.update { it.copy(layout = layout) }
         recomposeOnly()
     }
 
     fun onTreatmentChange(treatment: FilmTreatment) {
         if (_uiState.value.treatment == treatment) return
-        _uiState.update { it.copy(treatment = treatment, saved = false) }
+        _uiState.update { it.copy(treatment = treatment) }
         recomposeOnly()
     }
 
     fun onFrameColorChange(frameColor: FrameColorPreset) {
         if (_uiState.value.frameColor == frameColor) return
-        _uiState.update { it.copy(frameColor = frameColor, saved = false) }
+        _uiState.update { it.copy(frameColor = frameColor) }
         recomposeOnly()
     }
 
@@ -120,51 +116,9 @@ class StripPreviewViewModel(
                 // mapIndexed (rather than an indexed write) keeps this safe even if
                 // decodedFrames hasn't been sized to match rawFrames yet.
                 decodedFrames = it.decodedFrames.mapIndexed { i, bitmap -> if (i == index) null else bitmap },
-                saved = false,
-                savedPath = null,
             )
         }
         runPipeline()
-    }
-
-    fun onSavePng() {
-        val composed = _uiState.value.composedImage ?: return
-        if (_uiState.value.isSaving) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true, saveError = null) }
-            try {
-                val pngBytes = withContext(workDispatcher) { encodeImageBitmapToPng(composed) }
-                val displayName = "photobooth-${currentEpochMillis()}"
-                val savedPath = mediaRepo.savePng(pngBytes, displayName)
-                galleryRepo.save(
-                    HistoryEntry(
-                        finalImagePath = savedPath,
-                        // TODO(follow-up): generate a real downsampled thumbnail
-                        // (architecture.md's "Performance" non-functional note) instead of
-                        // reusing the full-res path - deferred, not a functional blocker for
-                        // the Gallery grid, which can decode the full image meanwhile.
-                        thumbnailPath = savedPath,
-                        filmTreatmentId = _uiState.value.treatment.code,
-                        createdAt = currentEpochMillis(),
-                        stamp = _uiState.value.stamp,
-                    )
-                )
-                _uiState.update { it.copy(isSaving = false, saved = true, savedPath = savedPath) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isSaving = false, saveError = e.message ?: "Save failed") }
-            }
-        }
-    }
-
-    /** Native share sheet, optional per design/handoff/README.md's sequence diagram ("Prev->U:
-     *  native share sheet (optional)") - only meaningful once a save has actually produced a
-     *  path, and only on platforms that wired a [ShareSheet] in. */
-    fun onShare() {
-        val path = _uiState.value.savedPath ?: return
-        val sheet = shareSheet ?: return
-        viewModelScope.launch { sheet.shareImage(path, "photobooth-strip") }
     }
 
     private fun runPipeline() {

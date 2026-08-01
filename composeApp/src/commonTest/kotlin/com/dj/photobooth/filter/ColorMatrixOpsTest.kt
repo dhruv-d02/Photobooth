@@ -130,22 +130,26 @@ class ColorMatrixOpsTest {
     }
 
     @Test
-    fun `FilmTreatment BlackAndWhite fully desaturates`() {
-        val out = FilmTreatment.BlackAndWhite.colorMatrix.applyTo(1f, 0f, 0f)
-        // All three output channels must be equal (grayscale), regardless of contrast's exact scaling.
-        assertClose(out[0], out[1])
-        assertClose(out[1], out[2])
+    fun `FilmTreatment Disposable matches the documented saturate-contrast-brightness chain`() {
+        // Gray/equal-channel inputs are invariant under saturate and hue-rotate (both matrices'
+        // rows sum to 1 for any amount/angle), so a fully-desaturated white (1,1,1) isolates
+        // just the contrast(1.15) then brightness(1.05) steps: 1.15*1 - 0.075 = 1.075, *1.05.
+        val out = FilmTreatment.Disposable.colorMatrix.applyTo(1f, 1f, 1f)
+        assertClose(1.12875f, out[0])
     }
 
     @Test
-    fun `FilmTreatment SteelDuotone carries the documented overlay color and alpha`() {
-        assertEquals(0.85f, FilmTreatment.SteelDuotone.duotoneOverlayAlpha)
-        val overlay = FilmTreatment.SteelDuotone.duotoneOverlay
-        requireNotNull(overlay) { "SteelDuotone must define a duotone overlay color" }
-        // #b5d9fd normalized: R=0xb5/255, G=0xd9/255, B=0xfd/255. Compare via the public
-        // normalized-float channel accessors rather than Color.value's internal packing.
-        assertClose(0xB5 / 255f, overlay.red)
-        assertClose(0xD9 / 255f, overlay.green)
-        assertClose(0xFD / 255f, overlay.blue)
+    fun `FilmTreatment Cyber's saturate and hue-rotate leave a desaturated white unchanged before contrast`() {
+        // Same row-sums-to-1 property isolates Cyber's trailing contrast(1.1) step:
+        // 1.1*1 - 0.05 = 1.05.
+        val out = FilmTreatment.Cyber.colorMatrix.applyTo(1f, 1f, 1f)
+        assertClose(1.05f, out[0])
+    }
+
+    @Test
+    fun `none of the 5 Boothie treatments carry a duotone overlay`() {
+        FilmTreatment.entries.forEach { treatment ->
+            assertEquals(null, treatment.duotoneOverlay, "${treatment.name} should have no duotone overlay")
+        }
     }
 }

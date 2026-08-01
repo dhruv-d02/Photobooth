@@ -30,6 +30,8 @@ import com.dj.photobooth.gallery.StripDetailViewModel
 import com.dj.photobooth.landing.LandingScreen
 import com.dj.photobooth.preview.StripPreviewScreen
 import com.dj.photobooth.preview.StripPreviewViewModel
+import com.dj.photobooth.share.ShareScreen
+import com.dj.photobooth.share.ShareViewModel
 
 /**
  * The app's root navigation graph - Navigation-Compose (multiplatform), the decided library
@@ -42,7 +44,9 @@ import com.dj.photobooth.preview.StripPreviewViewModel
  * Shoot       -->|all frames accepted|     Preview
  * Preview     -->|RESHOOT|                 Shoot       (fresh session, every frame cleared)
  * Preview     -->|per-cell RETAKE 0N|      Shoot       (one slot only, other frames kept)
- * Preview     -->|SAVE PNG|                Booth       (auto, once StripPreviewUiState.saved flips)
+ * Preview     -->|continue|                Share       (hands off the composed strip via SessionHandoffViewModel)
+ * Share       -->|‹ edit|                  Preview     (popBackStack - Share is a normal forward destination)
+ * Share       -->|make another strip|      Booth
  * Strips      -->|tap card|                StripDetail (in-app viewer, see Route.StripDetail)
  * StripDetail -->|← BACK|                  Strips
  * StripDetail -->|DELETE, confirmed|       Strips      (auto, once StripDetailUiState.deleted flips)
@@ -63,7 +67,8 @@ import com.dj.photobooth.preview.StripPreviewViewModel
  * alive, so the user's treatment/frame-colour/layout selections survive a retake instead of
  * resetting.
  *
- * **Cross-destination state.** The frames/retake-slot/retake-result trio lives in
+ * **Cross-destination state.** The frames/retake-slot/retake-result trio - plus, since this
+ * rebrand, the composed-strip hand-off Customize's continue hands to Share - lives in
  * [SessionHandoffViewModel], not in `remember` - see that class for the rotation bugs `remember`
  * caused. Everything else here is either derived from the back stack or owned by a screen's own
  * ViewModel.
@@ -215,10 +220,13 @@ fun PhotoboothNavHost(
             }
 
             composable(Route.Strips.route) {
-                val viewModel = viewModel { GalleryViewModel(repo = galleryRepo, mediaRepo = mediaRepo) }
+                val viewModel = viewModel {
+                    GalleryViewModel(repo = galleryRepo, mediaRepo = mediaRepo, shareSheet = shareSheet)
+                }
                 GalleryScreen(
                     viewModel = viewModel,
                     onOpenEntry = { entry -> navController.navigate(Route.StripDetail.routeFor(entry.id)) },
+                    onStartStrip = { navController.navigate(Route.Shoot.route) },
                 )
             }
 
@@ -259,13 +267,11 @@ fun PhotoboothNavHost(
                 // sessionFrames is read only when the factory first runs for this entry, so a
                 // retake landing later doesn't rebuild the ViewModel and discard the user's
                 // treatment/frame-colour/layout choices - replaceFrame updates it in place.
+                // No galleryRepo/mediaRepo/shareSheet here any more - Customize no longer saves
+                // anything itself (see StripPreviewViewModel's class doc); that responsibility
+                // moved to ShareViewModel, below.
                 val viewModel = viewModel {
-                    StripPreviewViewModel(
-                        initialFrames = sessionFrames,
-                        galleryRepo = galleryRepo,
-                        mediaRepo = mediaRepo,
-                        shareSheet = shareSheet,
-                    )
+                    StripPreviewViewModel(initialFrames = sessionFrames)
                 }
                 val state by viewModel.uiState.collectAsState()
 
@@ -275,18 +281,6 @@ fun PhotoboothNavHost(
                     retakeResult?.let { (index, frame) ->
                         viewModel.replaceFrame(index, frame)
                         session.consumeRetakeResult()
-                    }
-                }
-
-                // "Preview -->|SAVE PNG| Booth" (architecture.md's nav diagram) - fires once,
-                // right after onSavePng() successfully archives the strip, same LaunchedEffect
-                // shape CaptureScreen already uses for its own sessionComplete -> navigate edge.
-                LaunchedEffect(state.saved) {
-                    if (state.saved) {
-                        navController.navigate(Route.Booth.route) {
-                            popUpTo(Route.Booth.route) { inclusive = false }
-                            launchSingleTop = true
-                        }
                     }
                 }
 
@@ -306,6 +300,71 @@ fun PhotoboothNavHost(
                         session.requestRetake(index)
                         navController.navigate(Route.Shoot.route)
                     },
+                    onContinue = {
+                        // "Preview -->|continue| Share": hand the already-composed image off to
+                        // SessionHandoffViewModel (a plain ImageBitmap can't ride a nav arg -
+                        // see ComposedStrip's doc comment) and push Share as a normal forward
+                        // destination. Guarded the same way the old SAVE PNG button was
+                        // (composedImage != null, enforced in StripPreviewScreen's ActionBar).
+                        val composed = state.composedImage
+                        if (composed != null) {
+                            session.publishComposedStrip(
+                                ComposedStrip(
+                                    image = composed,
+                                    treatmentCode = state.treatment.code,
+                                    frameColor = state.frameColor,
+                                    layout = state.layout,
+                                    stamp = state.stamp,
+                                )
+                            )
+                            navController.navigate(Route.Share.route)
+                        }
+                    },
+                )
+            }
+
+            composable(Route.Share.route) {
+                // Read once at entry creation - Share is only reachable via Customize's
+                // continue, which always publishes a ComposedStrip first, so null here is a
+                // caller-error state that shouldn't normally happen (e.g. process death between
+                // publish and this composable running). Handled minimally: pop back rather than
+                // crash on a non-null assertion.
+                val strip = session.composedStrip.value
+                if (strip == null) {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                    return@composable
+                }
+
+                val viewModel = viewModel {
+                    ShareViewModel(
+                        composedStrip = strip,
+                        galleryRepo = galleryRepo,
+                        mediaRepo = mediaRepo,
+                        shareSheet = shareSheet,
+                    )
+                }
+                val state by viewModel.uiState.collectAsState()
+
+                ShareScreen(
+                    state = state,
+                    onBack = {
+                        // "Share -->|‹ edit| Preview": a normal pop, not a fresh nav - Share was
+                        // pushed forward from Preview, so Preview (and its ViewModel/styling
+                        // choices) is still sitting right underneath on the back stack.
+                        navController.popBackStack()
+                    },
+                    onSaveToPhotos = viewModel::onSaveToPhotos,
+                    onShare = viewModel::onShare,
+                    onMakeAnother = {
+                        // "Share -->|make another strip| Booth": same fresh-session reset as
+                        // Booth's own START SESSION / Preview's RESHOOT, popped back to Booth.
+                        session.startFreshSession()
+                        navController.navigate(Route.Booth.route) {
+                            popUpTo(Route.Booth.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onToastDismissed = viewModel::onToastDismissed,
                 )
             }
         }

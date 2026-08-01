@@ -4,6 +4,7 @@ kotlin = "2.4.10"
 composeMultiplatform = "1.11.1"
 androidxActivityCompose = "1.11.0"
 androidxCoreKtx = "1.19.0"
+androidxCoreSplashscreen = "1.0.1"
 androidxLifecycle = "2.9.5"
 cameraX = "1.5.1"
 kotlinxCoroutines = "1.10.2"
@@ -27,6 +28,7 @@ kotlinxDatetime = "0.8.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "androidxCoreSplashscreen" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivityCompose" }
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "androidxLifecycle" }

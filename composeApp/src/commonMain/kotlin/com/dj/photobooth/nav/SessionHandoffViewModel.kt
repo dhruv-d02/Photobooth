@@ -1,10 +1,31 @@
 package com.dj.photobooth.nav
 
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import com.dj.photobooth.capture.CaptureFrame
+import com.dj.photobooth.filter.FrameColorPreset
+import com.dj.photobooth.filter.StripLayout
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * A finished Customize session, handed from Preview to Share via
+ * [SessionHandoffViewModel.composedStrip] - the same "can't go through a nav arg" reasoning as
+ * [CaptureFrame]s above: Navigation-Compose route args are strings/primitives only, and
+ * [ImageBitmap] is a Skia bitmap, not a primitive. Carries everything Share's UI needs to
+ * render the mount without recomputing anything Customize already knows - [frameColor] and
+ * [layout] for the mount's background/shape/aspect, [treatmentCode] for the archived
+ * [com.dj.photobooth.gallery.HistoryEntry.filmTreatmentId], [stamp] for the footer date and the
+ * archived entry's own stamp.
+ */
+data class ComposedStrip(
+    val image: ImageBitmap,
+    val treatmentCode: String,
+    val frameColor: FrameColorPreset,
+    val layout: StripLayout,
+    val stamp: String,
+)
 
 /**
  * The small amount of state the nav layer has to carry *between* destinations: the frames a
@@ -50,6 +71,13 @@ class SessionHandoffViewModel : ViewModel() {
     private val _retakeResult = MutableStateFlow<Pair<Int, CaptureFrame>?>(null)
     val retakeResult: StateFlow<Pair<Int, CaptureFrame>?> = _retakeResult.asStateFlow()
 
+    // The composed strip Customize's "continue" hands to Share - see [ComposedStrip]'s doc
+    // comment. Non-null only for the lifetime of that hand-off; [startFreshSession] clears it
+    // for the same reason it clears [sessionFrames], so a stale composed image can never leak
+    // into a later, unrelated visit to Share.
+    private val _composedStrip = MutableStateFlow<ComposedStrip?>(null)
+    val composedStrip: StateFlow<ComposedStrip?> = _composedStrip.asStateFlow()
+
     /**
      * A fresh session is starting (Booth's `START SESSION`, or Preview's `RESHOOT`): clear the
      * retake mode *and* the previous session's frames. Dropping the frames here is what bounds
@@ -60,6 +88,7 @@ class SessionHandoffViewModel : ViewModel() {
         _retakeSlot.value = null
         _retakeResult.value = null
         _sessionFrames.value = emptyList()
+        _composedStrip.value = null
     }
 
     /** Preview's per-cell `RETAKE 0N`: re-shoot exactly this slot, keeping [sessionFrames]. */
@@ -95,5 +124,19 @@ class SessionHandoffViewModel : ViewModel() {
     /** Preview has applied the retaken frame; clear it so it is applied exactly once. */
     fun consumeRetakeResult() {
         _retakeResult.value = null
+    }
+
+    /** Customize's "continue": hand the just-composed strip to the Share entry being pushed. */
+    fun publishComposedStrip(strip: ComposedStrip) {
+        _composedStrip.value = strip
+    }
+
+    /** Not called from the normal forward flow today ([startFreshSession] already covers the
+     *  one case a stale composed strip would otherwise leak into) - kept as the explicit,
+     *  symmetrical counterpart to [publishComposedStrip]/[consumeRetakeResult] in case a future
+     *  caller needs to consume it exactly once rather than relying on the next publish to
+     *  overwrite it. */
+    fun consumeComposedStrip() {
+        _composedStrip.value = null
     }
 }

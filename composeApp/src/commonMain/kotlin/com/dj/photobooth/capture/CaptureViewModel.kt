@@ -424,7 +424,7 @@ class CaptureViewModel(
 
     private companion object {
         val COUNTDOWN_DIGITS = listOf("3", "2", "1")
-        const val COUNTDOWN_STEP_MS = 760L
-        const val FLASH_MS = 180L
+        const val COUNTDOWN_STEP_MS = 650L
+        const val FLASH_MS = 160L
     }
 }

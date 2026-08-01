@@ -3,6 +3,7 @@ package com.dj.photobooth.gallery
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dj.photobooth.export.MediaRepo
+import com.dj.photobooth.export.ShareSheet
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,9 @@ import kotlinx.coroutines.launch
 class GalleryViewModel(
     private val repo: GalleryRepo,
     private val mediaRepo: MediaRepo,
+    // Nullable for the same reason StripDetailViewModel's is - the screen can be exercised
+    // standalone or in tests without a platform share sheet wired in.
+    private val shareSheet: ShareSheet? = null,
 ) : ViewModel() {
 
     /**
@@ -91,6 +95,17 @@ class GalleryViewModel(
                 showTransiently(e.message ?: "save failed")
             }
         }
+    }
+
+    /** The per-card share icon button (design_handoff_photobooth_rebrand/README.md §5) - hands
+     *  the strip to the platform share sheet. Mirrors StripDetailViewModel.onShare exactly,
+     *  including the lack of explicit error handling: a share sheet failing to open isn't
+     *  something this app can usefully recover from or explain. This is a distinct action from
+     *  [onSaveCopy] (writes a second file to device storage) - sharing hands the existing file
+     *  to another app without duplicating it. */
+    fun onShare(entry: HistoryEntry) {
+        val sheet = shareSheet ?: return
+        viewModelScope.launch { sheet.shareImage(entry.finalImagePath, "photobooth-strip") }
     }
 
     private suspend fun showTransiently(message: String) {
