@@ -1,19 +1,18 @@
 package com.dj.photobooth.landing
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -21,235 +20,208 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import com.dj.photobooth.theme.Brand
 import com.dj.photobooth.theme.PhotoboothColors
-import com.dj.photobooth.theme.PhotoboothSpacing
 import com.dj.photobooth.theme.PhotoboothType
-import com.dj.photobooth.ui.CornerTicks
+import com.dj.photobooth.ui.Sparkle
+import com.dj.photobooth.ui.TapeCorner
 
 /**
- * Landing screen, design/handoff/README.md § 1 - variant **1a "Spec sheet"** only. Per
- * architecture.md's nav section, 1a is the only variant shipped; 1b (Steel field) and 1c
- * (Procedure list) are reference-only design alternatives, deliberately not built here.
+ * Booth (landing) screen - design/handoff/README.md § "1. Booth (landing)", verified against
+ * `Photobooth Rebrand.dc.html`'s `screenIs.booth` block (lines ~149-181), the real markup/inline
+ * styles rather than the README's prose summary.
  *
- * Pure display + one callback ([onStartSession]) - this screen owns no session state itself,
- * matching CaptureScreen's plain-View convention (all state/logic lives one layer up, here in
- * the NavHost/ViewModel, not in the composable).
+ * Pure display + one callback ([onStartSession]) - this screen owns no session state itself.
+ * The bottom tab bar (booth/shoot/strips) is NOT built here - `PhotoboothNavHost`'s `Scaffold`
+ * already wraps this route in the shared `BottomTabBar`, so this file is only the screen's own
+ * scrollable content above it.
  */
 @Composable
 fun LandingScreen(onStartSession: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PhotoboothColors.Ground)
-            // "a faint 27.2px grid (#1d1f2008 1px lines both axes)" behind the whole screen.
-            .drawBehind { drawFaintGrid() }
-            // Edge-to-edge is on and the NavHost no longer applies a blanket status-bar inset
-            // (that would break Capture's full-bleed dark screen), so each light screen adds
-            // its own - the ground/grid still paint behind the status bar, only content insets.
+            .background(PhotoboothColors.Cream)
+            // "background-image:radial-gradient(circle, rgba(43,24,48,.07) 1px, transparent
+            // 1.5px);background-size:16px 16px" - Compose has no repeating radial-gradient
+            // primitive, so this is a drawn dot grid instead (same technique the Industry-era
+            // screen used for its faint line grid, drawCircle in place of drawLine).
+            .drawBehind { drawDottedGrid() }
+            // Edge-to-edge is on and the NavHost doesn't apply a blanket status-bar inset (that
+            // would break Capture's full-bleed dark screen), so each light screen adds its own -
+            // the cream/dots still paint behind the status bar, only content insets.
             .statusBarsPadding(),
     ) {
-        TopBlock()
-        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            StripFigure()
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                // dc.html: "flex:1;padding:26px 22px 8px;...gap:14px"
+                .padding(top = 26.dp, start = 22.dp, end = 22.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Wordmark()
+            Text(
+                text = "pocket photobooth",
+                style = PhotoboothType.stamp17(),
+                color = PhotoboothColors.Purple,
+                modifier = Modifier.graphicsLayer { rotationZ = -2f },
+            )
+            Text(
+                text = "four shots,\none strip,\nzero booth.",
+                style = PhotoboothType.display36(),
+                color = PhotoboothColors.Ink,
+            )
+            Text(
+                text = "smile four times, pick your favorites, turn today into a strip " +
+                    "worth keeping.",
+                style = PhotoboothType.bodyRegular(),
+                color = PhotoboothColors.TextBody,
+                modifier = Modifier.widthIn(max = 270.dp),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    // dc.html: "margin:10px 0 6px" on the strip-preview wrapper.
+                    .padding(top = 10.dp, bottom = 6.dp),
+            ) {
+                StripPreview()
+            }
         }
-        BottomBlock(onStartSession = onStartSession)
+        StartBlock(onStartSession = onStartSession)
     }
 }
 
-private fun DrawScope.drawFaintGrid() {
-    val pitch = PhotoboothSpacing.gridPitch.toPx()
+private fun DrawScope.drawDottedGrid() {
+    val pitch = 16.dp.toPx()
+    val radius = 1.2.dp.toPx()
     val color = PhotoboothColors.GridLineOnLight
-    var x = 0f
-    while (x < size.width) {
-        drawLine(color, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1f)
-        x += pitch
-    }
     var y = 0f
     while (y < size.height) {
-        drawLine(color, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+        var x = 0f
+        while (x < size.width) {
+            drawCircle(color = color, radius = radius, center = Offset(x, y))
+            x += pitch
+        }
         y += pitch
     }
 }
 
-// design/handoff/README.md line 60: "Top block, padding 27.2px 20.4px 17px, 13.6px gap, 1px
-// bottom border" - CSS 3-value shorthand (top | left-right | bottom).
+// dc.html: `<span style="...font-family:'Fredoka';font-weight:700;font-size:15px;color:#FF4FA0;">
+// {{ appName }}</span>` plus a 13x13 sparkle glyph - the wordmark is the plain app name, NOT
+// uppercased (unlike the old Industry-era "FOURFRAME" placeholder this replaces).
 @Composable
-private fun TopBlock() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            // 1px bottom border only - drawn rather than Modifier.border() so it doesn't
-            // also draw the top/side edges the spec doesn't call for.
-            .drawBehind {
-                drawLine(
-                    color = PhotoboothColors.HairlineOnLight,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1f,
-                )
-            }
-            .padding(
-                PaddingValues(
-                    top = PhotoboothSpacing.xlLarge,
-                    start = PhotoboothSpacing.lgLarge,
-                    end = PhotoboothSpacing.lgLarge,
-                    bottom = PhotoboothSpacing.lg,
-                ),
-            ),
-        verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
+private fun Wordmark() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Kicker: monospace 10px uppercase, letter-spacing .16em, #416180 - meta10 is the
-        // right family/size/weight but its default letter-spacing (.14em) is a shared value
-        // across every 10px metadata label; this kicker is specced at .16em specifically
-        // (line 61), so override via .copy() rather than changing meta10 itself.
         Text(
-            text = "SPEC 01 — 4 EXPOSURES, ONE STRIP",
-            style = PhotoboothType.meta10.copy(letterSpacing = 0.16f.em),
-            color = PhotoboothColors.AccentPressed,
+            text = Brand.NAME,
+            style = PhotoboothType.display15(),
+            color = PhotoboothColors.HotPink,
         )
-        Text(
-            text = "FOUR FRAMES.\nONE STRIP.\nNO BOOTH.",
-            style = PhotoboothType.display52,
-            color = PhotoboothColors.TextPrimary,
-        )
-        Text(
-            text = "Your camera fires four times on a countdown, then lays the exposures " +
-                "into a photobooth strip you can tint, filter and save to your phone.",
-            style = PhotoboothType.body15,
-            color = PhotoboothColors.TextBody,
-        )
+        Sparkle(size = 13.dp, tint = PhotoboothColors.Gold)
     }
 }
 
-// design/handoff/README.md lines 67-71: centred drawn strip figure, 150px wide, four empty
-// 4:3 cells filled with a 45deg hatch, footer row (brand + "2x6 IN"), four "+" marks.
+// This screen has no live chaos slider (that's a prototype-only tweak, per architecture.md /
+// the design handoff's Interactions section) - fixed at the dc.html default so the strip
+// preview still reads as "chaotic-good" scrapbook tilt rather than perfectly square.
+private const val Chaos = 0.65f
+
+// Cell fills stand in for real captured photos on this screen (there are none yet - this is
+// the landing screen's decorative strip graphic, not an actual session). Approximates the
+// dc.html's four 135deg CSS gradients; Brush.linearGradient's default diagonal reads close
+// enough for a small decorative swatch (same call already made for PhotoboothColors.DarkGradient).
+private val StripCellGradients = listOf(
+    Brush.linearGradient(listOf(Color(0xFFFF9AD1), PhotoboothColors.HotPink)),
+    Brush.linearGradient(listOf(Color(0xFFC7A6FF), PhotoboothColors.Purple)),
+    Brush.linearGradient(listOf(Color(0xFFFFE18A), PhotoboothColors.Gold)),
+    Brush.linearGradient(listOf(Color(0xFF8FF3D9), PhotoboothColors.Mint)),
+)
+
+// dc.html lines ~163-171 + the chaos formulas at line ~630: `boothStripRot: -4 * chaos,
+// boothTapeRot1: -30 * chaos, boothTapeRot2: 24 * chaos, boothStarRot: 12 * chaos`. The card
+// itself carries the -4*chaos rotation; the two tape strips and the sparkle accent each carry
+// their own independent rotation, not compounded with the card's.
 @Composable
-private fun StripFigure() {
-    CornerTicks {
-        Column(
-            modifier = Modifier
-                .width(150.dp)
-                .background(PhotoboothColors.Paper)
-                .border(1.dp, PhotoboothColors.Accent)
-                .padding(PhotoboothSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.sm),
+private fun StripPreview() {
+    val stripRotation = -4f * Chaos
+    val tapeRotationTopLeft = -30f * Chaos
+    val tapeRotationBottomRight = 24f * Chaos
+    val starRotation = 12f * Chaos
+
+    Box {
+        TapeCorner(
+            // Booth's tape is bigger/brighter than Customize/Share's default (28x13, ink-
+            // tinted) - dc.html's booth tape is 32x15 at .9 opacity, gold top-left / mint
+            // bottom-right.
+            tapeWidth = 32.dp,
+            tapeHeight = 15.dp,
+            topLeftTapeColor = PhotoboothColors.Gold.copy(alpha = 0.9f),
+            bottomRightTapeColor = PhotoboothColors.Mint.copy(alpha = 0.9f),
+            topLeftRotationDeg = tapeRotationTopLeft,
+            bottomRightRotationDeg = tapeRotationBottomRight,
         ) {
-            repeat(4) {
-                HatchedCell(modifier = Modifier.fillMaxWidth().aspectRatio(4f / 3f))
-            }
-            Box(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .drawBehind {
-                        drawLine(
-                            color = PhotoboothColors.HairlineOnLight,
-                            start = Offset(0f, 0f),
-                            end = Offset(size.width, 0f),
-                            strokeWidth = 1f,
-                        )
-                    }
-                    .padding(top = PhotoboothSpacing.sm),
+                    .width(124.dp)
+                    .graphicsLayer { rotationZ = stripRotation }
+                    .shadow(elevation = 10.dp, shape = RoundedCornerShape(14.dp), clip = false)
+                    .background(PhotoboothColors.Paper, RoundedCornerShape(14.dp))
+                    .padding(9.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    // Brand string is still undecided (architecture.md § Core domain model:
-                    // "brand ... default placeholder — app name still undecided"); the design
-                    // handoff's own default config uses "Fourframe" as its placeholder brand.
-                    Text(
-                        text = "FOURFRAME",
-                        style = PhotoboothType.heading10.copy(letterSpacing = 0.14f.em),
-                        color = PhotoboothColors.TextPrimary,
-                    )
-                    Text(
-                        text = "2×6 IN",
-                        style = PhotoboothType.meta8,
-                        color = PhotoboothColors.TextMuted,
+                StripCellGradients.forEach { gradient ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(gradient),
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun HatchedCell(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            // #dfe7f0 / #eef6ff are exactly PhotoboothColors.AccentTintFaint / AccentTintSoft.
-            .background(PhotoboothColors.AccentTintSoft)
-            .drawBehind { drawDiagonalHatch() }
-            .border(1.dp, PhotoboothColors.HairlineOnLight),
-    )
-}
-
-// "45° 4px/4px hatch (#dfe7f0/#eef6ff)": diagonal stripes, 4px stroke, 4px gap (8px period).
-private fun DrawScope.drawDiagonalHatch() {
-    val strokeWidthPx = 4.dp.toPx()
-    val periodPx = 8.dp.toPx()
-    val span = size.width + size.height
-    var offset = -size.height
-    while (offset < span) {
-        drawLine(
-            color = PhotoboothColors.AccentTintFaint,
-            start = Offset(offset, size.height),
-            end = Offset(offset + size.height, 0f),
-            strokeWidth = strokeWidthPx,
+        Sparkle(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 28.dp, y = 14.dp)
+                .graphicsLayer { rotationZ = starRotation },
+            size = 26.dp,
+            tint = PhotoboothColors.Gold,
         )
-        offset += periodPx
     }
 }
 
-// design/handoff/README.md lines 72-75: "Bottom block, 1px top border, padding 17px 20.4px
-// 20.4px: full-width primary button START SESSION ... then a two-line monospace 10px caption".
+// dc.html: "border-top:2px dashed rgba(43,24,48,.15);padding:12px 22px 20px" wrapping the
+// primary CTA + helper caption.
 @Composable
-private fun BottomBlock(onStartSession: () -> Unit) {
+private fun StartBlock(onStartSession: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawLine(
-                    color = PhotoboothColors.HairlineOnLight,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1f,
-                )
-            }
-            .padding(
-                PaddingValues(
-                    top = PhotoboothSpacing.lg,
-                    start = PhotoboothSpacing.lgLarge,
-                    end = PhotoboothSpacing.lgLarge,
-                    bottom = PhotoboothSpacing.lgLarge,
-                ),
-            ),
-        verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.md),
+            .drawBehind { drawDashedTopBorder() }
+            .padding(top = 12.dp, start = 22.dp, end = 22.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
     ) {
-        CornerTicks {
-            // design/handoff/README.md line 73: "min-height 56px" - matches CaptureScreen's
-            // own 56.dp shutter/keep buttons.
-            Button(
-                onClick = onStartSession,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                shape = RoundedCornerShape(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PhotoboothColors.Accent,
-                    contentColor = PhotoboothColors.Paper,
-                ),
-            ) {
-                Text("START SESSION", style = PhotoboothType.heading18)
-            }
-        }
+        PrimaryCta(onStartSession = onStartSession)
         Text(
-            text = "CAMERA PERMISSION REQUIRED · NOTHING LEAVES THIS DEVICE",
-            style = PhotoboothType.meta10,
+            text = "no accounts · nothing leaves your phone",
+            style = PhotoboothType.bodyCaption(),
             color = PhotoboothColors.TextMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
@@ -257,3 +229,49 @@ private fun BottomBlock(onStartSession: () -> Unit) {
     }
 }
 
+private fun DrawScope.drawDashedTopBorder() {
+    drawLine(
+        color = PhotoboothColors.HairlineDashed,
+        start = Offset(0f, 0f),
+        end = Offset(size.width, 0f),
+        strokeWidth = 2.dp.toPx(),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f),
+    )
+}
+
+// dc.html: "height:54px;border-radius:999px;background:#FF4FA0;...font-size:16.5px;
+// box-shadow:0 5px 0 #C22A79" - a hard, non-blurred pressed-button ledge, not a blurred
+// elevation shadow. Built as two stacked pills: a same-shaped HotPinkPressed pill offset 5dp
+// down underneath, and the real button unshifted on top, rather than Modifier.shadow().
+@Composable
+private fun PrimaryCta(onStartSession: () -> Unit) {
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .offset(y = 5.dp)
+                .background(PhotoboothColors.HotPinkPressed, RoundedCornerShape(50)),
+        )
+        Button(
+            onClick = onStartSession,
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = PhotoboothColors.HotPink,
+                contentColor = PhotoboothColors.Paper,
+            ),
+            // Material's own elevation shadow would double up with the hard ledge drawn
+            // above/underneath - suppress it so only our flat drop-shadow reads.
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 0.dp,
+                pressedElevation = 0.dp,
+            ),
+        ) {
+            Text(
+                text = "start a strip",
+                style = PhotoboothType.display17().copy(fontSize = 16.5.sp),
+            )
+        }
+    }
+}

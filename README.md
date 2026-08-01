@@ -4,14 +4,14 @@ A free, offline photobooth app for Android and iOS. Countdown, per-frame capture
 
 ## Status
 
-📋 **Planning and design complete — implementation not yet started.** See [`architecture.md`](./architecture.md) for the full technical design and [`design/handoff/README.md`](./design/handoff/README.md) for the final visual spec.
+🎨 **Phases 0–3 built, and through a full visual rebrand.** Core functionality — KMP scaffold, CameraX capture loop, film treatment engine + strip/grid compositor, export/history + navigation — is implemented and running on Android. The most recent milestone is a complete re-skin from the original "Industry" blueprint look to **Boothie**, a Y2K/scrapbook aesthetic (the decided app name — see below). Phase 4 (iOS) is blocked on Mac/cloud-CI access. See [`architecture.md`](./architecture.md) for the full technical design and [`design/handoff/README.md`](./design/handoff/README.md) for the final visual spec.
 
 ## What it does (v1)
 
 - Live camera preview with front/back switch and flash toggle
 - 3-2-1 countdown, one exposure at a time — each frame gets a proof overlay you can accept or reshoot before the next one fires, so a strip never ends up with a bad frame
 - Configurable shot count (2-8 exposures, default 4)
-- Film treatments (None, B&W, Sepia, Warm, Steel duotone) and frame colors (Paper, Steel, Ink, Sky) applied after capture
+- Film treatments (None, Disposable, Sunkissed, Cyber, Dreamy, Black & White) and frame colors (Butter, Bubblegum, Grape, Spearmint) applied after capture
 - Vertical strip or 2×2 grid layout, chosen at export time
 - Save to your device gallery, or share directly via the native share sheet
 - An uncapped local history grid of past strips, with delete
@@ -20,7 +20,7 @@ No accounts, no cloud, nothing leaves your device.
 
 ## Design
 
-Visual design is final and pixel-faithful — an "Industry" blueprint aesthetic: square corners, hairline borders, "+" registration marks, Barlow/Barlow Condensed type, one steel-blue accent. See [`design/handoff/README.md`](./design/handoff/README.md) for the complete spec.
+Visual design is final and pixel-faithful — **Boothie**, a Y2K/scrapbook aesthetic: cream ground, hot-pink primary, purple/gold/mint accents, rounded pill shapes, tape-corner and sparkle motifs, Fredoka/Nunito/Caveat type. See [`design/handoff/README.md`](./design/handoff/README.md) for the complete spec.
 
 ## Tech stack
 

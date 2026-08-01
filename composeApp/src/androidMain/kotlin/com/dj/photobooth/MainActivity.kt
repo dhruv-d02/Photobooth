@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.dj.photobooth.camera.AndroidCameraController
 import com.dj.photobooth.export.AndroidMediaRepo
 import com.dj.photobooth.export.AndroidShareSheet
@@ -19,6 +20,10 @@ import com.dj.photobooth.export.AndroidShareSheet
 // and rebuilding a RoomDatabase per rotation leaks a connection pool each time.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Must run before super.onCreate() per the core-splashscreen library's documented
+        // usage - it reads the activity's theme (Theme.Boothie.Splash, set in
+        // AndroidManifest.xml) and swaps to postSplashScreenTheme once the splash is dismissed.
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         val cameraController = AndroidCameraController(this)
         val galleryRepo = (application as PhotoboothApplication).galleryRepo

@@ -9,7 +9,9 @@ package com.dj.photobooth.nav
  * Shoot       -->|all frames accepted|     Preview
  * Preview     -->|RESHOOT|                 Shoot       (fresh session, every frame cleared)
  * Preview     -->|per-cell RETAKE 0N|      Shoot       (one slot only, other frames kept)
- * Preview     -->|SAVE PNG|                Booth
+ * Preview     -->|continue|                Share       (hands off the composed strip, see SessionHandoffViewModel)
+ * Share       -->|‹ edit|                  Preview     (pop back - normal back nav, not a fresh entry)
+ * Share       -->|make another strip|      Booth
  * Strips      -->|tap card|                StripDetail (in-app viewer)
  * StripDetail -->|← BACK|                  Strips
  * StripDetail -->|DELETE, confirmed|       Strips      (pops back automatically)
@@ -17,7 +19,7 @@ package com.dj.photobooth.nav
  *
  * A sealed class (not raw string literals scattered at every `navigate()`/`composable()` call
  * site) so the route set is closed and typo-proof. [Booth], [Shoot] and [Strips] are the three
- * bottom-tab destinations (design/handoff/README.md § Bottom tab bar); [Preview] and
+ * bottom-tab destinations (design/handoff/README.md § Bottom tab bar); [Preview], [Share] and
  * [StripDetail] are each reached only from another screen, never from the tab bar itself, so
  * they deliberately have no [BottomTab] entry.
  *
@@ -33,6 +35,11 @@ sealed class Route(val route: String) {
     data object Shoot : Route("shoot")
     data object Strips : Route("strips")
     data object Preview : Route("preview")
+
+    // No path args - unlike StripDetail, the payload (a composed ImageBitmap) can't travel as
+    // a string/primitive nav arg at all, so it rides SessionHandoffViewModel.composedStrip
+    // instead (see that class's ComposedStrip doc comment).
+    data object Share : Route("share")
     data object StripDetail : Route("stripDetail/{entryId}") {
         fun routeFor(entryId: Long): String = "stripDetail/$entryId"
     }

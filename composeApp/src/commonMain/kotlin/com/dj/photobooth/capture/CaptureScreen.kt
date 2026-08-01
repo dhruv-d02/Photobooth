@@ -1,13 +1,18 @@
 package com.dj.photobooth.capture
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -32,37 +39,34 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.dj.photobooth.camera.CameraController
 import com.dj.photobooth.camera.CameraPreviewSurface
 import com.dj.photobooth.compose.decodeJpegToImageBitmap
 import com.dj.photobooth.theme.PhotoboothColors
-import com.dj.photobooth.theme.PhotoboothSpacing
 import com.dj.photobooth.theme.PhotoboothType
-import com.dj.photobooth.ui.CornerTicks
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The Capture screen (design/handoff/README.md § 2): full-bleed dark steel screen, no
- * bottom tab bar (a session is modal). Pure View in the MVVM sense - all state comes from
- * [viewModel]'s [CaptureUiState]; every tap just calls a ViewModel method.
+ * The Capture screen (design/handoff/README.md § "2. Capture", verified against
+ * `Photobooth Rebrand.dc.html`'s `screenIs.capture` block): full-bleed dark gradient screen,
+ * no bottom tab bar (a session is modal). Pure View in the MVVM sense - all state comes from
+ * [viewModel]'s [CaptureUiState]; every tap just calls a ViewModel method. The capture/keep/
+ * retake state machine itself is untouched by this re-skin - only the visuals below it change.
  *
  * [onSessionComplete] fires once, with every accepted frame, the moment
- * [CaptureUiState.sessionComplete] flips to true - i.e. right after the last queued frame is
- * kept (see CaptureViewModel.processNextInQueue). It's how the NavHost (not built in this
- * file) knows to transition from Capture to the Preview route once a session finishes;
- * defaults to a no-op so existing call sites that don't care about this yet keep compiling.
- *
- * Starting the session is deliberately NOT done here: the caller picks between
- * [CaptureViewModel.onStartSession] (fresh, clears every frame) and
- * [CaptureViewModel.onStartRetake] (re-shoot one slot, keeps the rest), and only the NavHost
- * knows which of those the user asked for. This screen stays a pure View either way.
+ * [CaptureUiState.sessionComplete] flips to true. Starting the session is deliberately NOT
+ * done here - the caller (NavHost) picks fresh session vs. single-slot retake.
  */
 @Composable
 fun CaptureScreen(
@@ -72,9 +76,8 @@ fun CaptureScreen(
     onSessionComplete: (frames: List<CaptureFrame>) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
-    // Shared across every rememberDecodedFrame call site on this screen (see that function's
-    // doc comment) so the same accepted frame - visible in both the proof overlay and the
-    // thumbnail row - is decoded once, not twice.
+    // Shared across every rememberDecodedFrame call site (proof overlay + thumbnail row) so the
+    // same accepted frame is decoded once, not twice.
     val decodedFrameCache = remember { mutableMapOf<CaptureFrame, ImageBitmap>() }
 
     LaunchedEffect(state.sessionComplete) {
@@ -83,16 +86,14 @@ fun CaptureScreen(
         }
     }
 
-    // The dark surface itself stays full-bleed (design/handoff/README.md § 2), edge to edge
-    // behind both system bars - only the bars' *content* is inset, below.
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PhotoboothColors.DarkSurface),
+            .background(PhotoboothColors.DarkGradient),
     ) {
         CaptureTopBar(state = state, onExit = { viewModel.onExit(); onExitToLanding() })
 
-        Box(modifier = Modifier.weight(1f)) {
+        Box(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
             Viewfinder(state = state, cameraController = cameraController, decodedFrameCache = decodedFrameCache)
         }
 
@@ -111,31 +112,41 @@ private fun CaptureTopBar(state: CaptureUiState, onExit: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // The screen behind stays full-bleed; only this bar's controls are pushed clear of
-            // the status bar, so EXIT stays tappable under edge-to-edge.
             .statusBarsPadding()
-            .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
+            .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        OutlinedButton(
-            onClick = onExit,
-            modifier = Modifier.size(width = 88.dp, height = 44.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.HairlineOnDark),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Color.White.copy(alpha = 0.12f))
+                .clickable(onClick = onExit)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
-            // design/handoff/README.md line 98-99: weight 500 (Medium), not the shared
-            // heading12 token's 600 (SemiBold) - this button is the one 12px-heading
-            // exception, so it overrides via .copy() rather than changing heading12 itself.
-            Text("← EXIT", style = PhotoboothType.heading12.copy(fontWeight = FontWeight.Medium))
+            Text(
+                "exit",
+                style = PhotoboothType.bodyBold11(),
+                color = PhotoboothColors.Cream,
+            )
         }
 
-        val exposureStatus = state.review?.let { "RETAKE · FRAME ${state.frameLabel(it.index)}" }
-            ?: "EXPOSURE ${state.frameLabel(state.queue.firstOrNull() ?: (state.acceptedCount).coerceAtMost(state.shotCount - 1))} / ${state.shotCountLabel()}"
-        Text(exposureStatus, style = PhotoboothType.meta10, color = PhotoboothColors.OnDarkAccent)
+        val captureStatusText = when {
+            state.review != null -> "reviewing shot ${state.frameLabel(state.review.index)}"
+            state.queue.isNotEmpty() -> "shot ${state.frameLabel(state.queue.first())} of ${state.shotCountLabel()}"
+            state.acceptedCount > 0 -> "${state.acceptedCount} of ${state.shotCount} kept"
+            else -> "ready when you are"
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(Color.White.copy(alpha = 0.14f))
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+        ) {
+            Text(captureStatusText, style = PhotoboothType.display13().copy(fontSize = 12.5.sp), color = PhotoboothColors.Cream)
+        }
 
-        val recStatus = if (state.shooting) "● REC" else "○ IDLE"
-        Text(recStatus, style = PhotoboothType.meta10, color = PhotoboothColors.OnDarkSecondaryText)
+        Box(modifier = Modifier.width(52.dp))
     }
 }
 
@@ -145,33 +156,35 @@ private fun Viewfinder(
     cameraController: CameraController,
     decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(20.dp)),
+    ) {
         CameraPreviewSurface(
             controller = cameraController,
             modifier = Modifier.fillMaxSize(),
         )
 
-        // Inset frame + corner ticks, per § 2 Viewfinder.
-        CornerTicks(
-            modifier = Modifier
-                .padding(PhotoboothSpacing.mdLarge)
-                .fillMaxSize()
-                .border(1.dp, PhotoboothColors.HairlineOnDarkSubtle),
-            tickColor = PhotoboothColors.OnDarkAccent,
-        ) {}
-
         AnimatedVisibility(
-            visible = state.countdown.isNotEmpty(),
+            visible = state.countdown.isEmpty() && !state.flash && state.review == null,
             enter = fadeIn(tween(150)),
             exit = fadeOut(tween(150)),
             modifier = Modifier.align(Alignment.Center),
         ) {
             Text(
-                text = state.countdown,
-                style = PhotoboothType.countdownDisplay,
-                color = PhotoboothColors.Paper,
+                text = "tap \"shoot ${state.shotCount} pics\" when you're ready",
+                style = PhotoboothType.bodyCaption().copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp),
+                color = Color.White.copy(alpha = 0.75f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 40.dp),
             )
         }
+
+        BounceInCountdown(
+            text = state.countdown,
+            modifier = Modifier.align(Alignment.Center),
+        )
 
         AnimatedVisibility(
             visible = state.flash,
@@ -182,47 +195,120 @@ private fun Viewfinder(
             Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.FlashOverlay))
         }
 
-        Text(
-            text = when (state.cameraState) {
-                CameraState.Live -> "FRONT CAMERA LIVE"
-                // Both non-Live terminal states read as PLACEHOLDER MODE - the design's
-                // viewfinder caption vocabulary (design/handoff/README.md § 2) is only
-                // LIVE / PLACEHOLDER MODE / CONNECTING…, and from the user's point of view
-                // "you declined" and "the camera won't open" have the same consequence here.
-                CameraState.Denied, CameraState.Unavailable -> "PLACEHOLDER MODE"
-                CameraState.RequestingPermission -> "CONNECTING…"
-                CameraState.Idle -> "CONNECTING…"
-            },
-            style = PhotoboothType.meta10,
-            color = PhotoboothColors.CaptionOnDark,
-            modifier = Modifier.align(Alignment.BottomStart).padding(PhotoboothSpacing.lg),
-        )
-        Text(
-            text = if (state.cameraState == CameraState.Live) "MIRRORED · 4:3" else "NO SIGNAL",
-            style = PhotoboothType.meta10,
-            color = PhotoboothColors.CaptionOnDark,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(PhotoboothSpacing.lg),
-        )
-
         state.review?.let { review ->
-            ProofOverlay(review = review, state = state, decodedFrameCache = decodedFrameCache)
+            // The actual captured shot - without this, nothing opaque covers the live
+            // CameraPreviewSurface behind it during review, so the camera feed just keeps
+            // showing through and the user can never see what they captured.
+            ProofOverlay(review = review, decodedFrameCache = decodedFrameCache)
+            ReviewBadgeRow(review = review, state = state)
         }
     }
 }
 
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.ProofOverlay(
+    review: ReviewState,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
+    val decoded = rememberDecodedFrame(review.frame, decodedFrameCache)
+    Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
+        if (decoded != null) {
+            Image(
+                painter = BitmapPainter(decoded),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
+
+// dc.html: `scale(.55) rotate(-8deg) opacity:0` at 0% -> `scale(1.1) rotate(3deg) opacity:1`
+// at 55% -> `scale(1) rotate(0deg) opacity:1` at 100%, over 500ms - replayed every time the
+// countdown digit changes. Approximated with linear keyframe interpolation between the three
+// points (close enough for a decorative overshoot bounce; an exact CSS easing curve per
+// segment isn't worth the extra complexity here).
+@Composable
+private fun BounceInCountdown(text: String, modifier: Modifier = Modifier) {
+    if (text.isEmpty()) return
+    val scale = remember(text) { Animatable(0.55f) }
+    val rotation = remember(text) { Animatable(-8f) }
+    val alpha = remember(text) { Animatable(0f) }
+    LaunchedEffect(text) {
+        launch {
+            scale.animateTo(
+                targetValue = 1f,
+                animationSpec = keyframes {
+                    durationMillis = 500
+                    0.55f at 0
+                    1.1f at 275
+                    1f at 500
+                },
+            )
+        }
+        launch {
+            rotation.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = 500
+                    -8f at 0
+                    3f at 275
+                    0f at 500
+                },
+            )
+        }
+        launch { alpha.animateTo(1f, animationSpec = tween(durationMillis = 275)) }
+    }
+    Text(
+        text = text,
+        style = PhotoboothType.countdownDisplay(),
+        color = PhotoboothColors.Cream,
+        modifier = modifier.graphicsLayer {
+            scaleX = scale.value
+            scaleY = scale.value
+            rotationZ = rotation.value
+            this.alpha = alpha.value
+        },
+    )
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.ReviewBadgeRow(review: ReviewState, state: CaptureUiState) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .align(Alignment.TopStart)
+            .padding(top = 14.dp, start = 16.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(PhotoboothColors.ReviewBadge)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+        ) {
+            Text(
+                "frame ${state.frameLabel(review.index)} of ${state.shotCountLabel()}",
+                style = PhotoboothType.display11(),
+                color = PhotoboothColors.Ink,
+            )
+        }
+        Text(
+            "your call — keep it or redo it",
+            style = PhotoboothType.bodyCaption(),
+            color = Color.White.copy(alpha = 0.8f),
+        )
+    }
+}
+
 /**
- * Decodes [frame]'s JPEG bytes off the main thread (Dispatchers.Default), so a full-
- * resolution decode never blocks composition/animation the way the equivalent capture-time
- * work used to before it was moved off Main in AndroidCameraController. Returns null while
- * decoding is in flight (explicitly reset below - produceState's initialValue only applies
- * on first composition, not on every key change, so without the reset a retake could show
- * the *previous* frame's bitmap while the new one decodes) or for placeholder frames (no
- * real bytes to decode) or if decoding fails (a corrupt/truncated JPEG throws rather than
- * crashing the screen - the UI already has a well-defined "no image yet" rendering for this).
+ * Decodes [frame]'s JPEG bytes off the main thread. Returns null while decoding is in flight
+ * (explicitly reset on every key change - produceState's initialValue only applies once) or
+ * for placeholder frames or on decode failure.
  *
- * [cache] is shared across every call site in this screen (ThumbnailRow and ProofOverlay both
- * call this for the same CaptureFrame once it's kept) so a frame is decoded once, not twice -
- * CaptureFrame's content-based equals/hashCode make it a safe, correct map key.
+ * [cache] is shared across every call site in this screen so a frame is decoded once, not
+ * twice - CaptureFrame's content-based equals/hashCode make it a safe map key.
  */
 @Composable
 private fun rememberDecodedFrame(
@@ -247,52 +333,6 @@ private fun rememberDecodedFrame(
 }
 
 @Composable
-private fun ProofOverlay(
-    review: ReviewState,
-    state: CaptureUiState,
-    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
-) {
-    val decoded = rememberDecodedFrame(review.frame, decodedFrameCache)
-    Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
-        if (decoded != null) {
-            androidx.compose.foundation.Image(
-                painter = BitmapPainter(decoded),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        // Placeholder frames (camera denied/unavailable) have no image to decode - the
-        // proof chip below is all they show, per CaptureFrame.isPlaceholder's contract.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(PhotoboothColors.ProofScrimApprox)
-                .padding(horizontal = PhotoboothSpacing.lgLarge, vertical = PhotoboothSpacing.mdLarge),
-            horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(PhotoboothColors.OnDarkAccent)
-                    .padding(horizontal = 9.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    "PROOF ${state.frameLabel(review.index)}",
-                    style = PhotoboothType.metaChip11,
-                    color = PhotoboothColors.DarkSurface,
-                )
-            }
-            Text(
-                "FRAME ${state.frameLabel(review.index)} OF ${state.shotCountLabel()} · YOUR CALL",
-                style = PhotoboothType.meta10,
-                color = PhotoboothColors.Paper,
-            )
-        }
-    }
-}
-
-@Composable
 private fun CaptureBottomBar(
     state: CaptureUiState,
     onShutter: () -> Unit,
@@ -300,17 +340,10 @@ private fun CaptureBottomBar(
     onShootAgain: () -> Unit,
     decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
 ) {
-    // WHAT: thumbnails + controls fade and collapse away while a frame is actively counting
-    // down/exposing, giving the viewfinder the full remaining height, then reappear the instant
-    // the proof overlay has something to show (or immediately, if idle).
-    //
-    // WHY this deliberately departs from design/handoff/README.md:120-122 (which keeps this row
-    // visible throughout, the shutter merely relabelled "EXPOSING…", per CLAUDE.md's "visual
-    // design is final and pixel-faithful"): a maintainer decision, not a default - see PR
-    // discussion. `state.shooting` alone can't gate this: CaptureViewModel.processNextInQueue
-    // holds it true for the ENTIRE session, review included, so gating on it alone would also
-    // hide SHOOT AGAIN / KEEP·NEXT while the user is deciding. Only the "nothing to review yet"
-    // window - countdown, flash, capture, and the inter-frame pause - should hide.
+    // Thumbnails + controls collapse away while a frame is actively counting down/exposing,
+    // giving the viewfinder the full remaining height, then reappear once there's something to
+    // review (or immediately, if idle) - see the Industry-era version's doc comment for the
+    // full "why not gate on state.shooting alone" reasoning, unchanged here.
     val isExposing = state.shooting && state.review == null
 
     AnimatedVisibility(
@@ -321,91 +354,137 @@ private fun CaptureBottomBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // Capture hides the tab bar (a session is modal), so nothing else reserves the
-                // gesture-bar space that the shutter/KEEP buttons would otherwise sit under.
                 .navigationBarsPadding()
-                .padding(horizontal = PhotoboothSpacing.lg, vertical = PhotoboothSpacing.mdLarge),
-            verticalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             ThumbnailRow(state = state, decodedFrameCache = decodedFrameCache)
 
             if (state.review != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.mdLarge)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
                         onClick = onShootAgain,
-                        modifier = Modifier.weight(1f).height(56.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, PhotoboothColors.GhostBorderOnDark),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Paper),
-                    ) { Text("SHOOT AGAIN", style = PhotoboothType.heading18) }
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(2.dp, Color.White.copy(alpha = 0.4f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PhotoboothColors.Cream),
+                    ) { Text("retake", style = PhotoboothType.display13().copy(fontSize = 14.5.sp)) }
 
-                    val isLastFrame = state.queue.size <= 1
-                    Button(
+                    HardShadowPill(
                         onClick = onKeep,
-                        modifier = Modifier.weight(1.4f).height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PhotoboothColors.OnDarkAccent,
-                            contentColor = PhotoboothColors.DarkSurface,
-                        ),
-                    ) { Text(if (isLastFrame) "KEEP" else "KEEP · NEXT", style = PhotoboothType.heading18) }
+                        modifier = Modifier.weight(1.4f),
+                        height = 54.dp,
+                        backgroundColor = PhotoboothColors.HotPink,
+                        shadowColor = PhotoboothColors.HotPinkPressed,
+                        contentColor = PhotoboothColors.Cream,
+                    ) { Text("keep it", style = PhotoboothType.display13().copy(fontSize = 14.5.sp)) }
                 }
-                // design/handoff/README.md lines 125-126: "Below them, the log line as centred
-                // monospace 10px #9ebbd8" - missing entirely before this fix, so log messages
-                // like "Frame 02 discarded · shooting again." never reached the user in review.
                 Text(
                     state.log,
-                    style = PhotoboothType.meta10,
-                    color = PhotoboothColors.OnDarkSecondaryText,
+                    style = PhotoboothType.bodyCaption(),
+                    color = Color.White.copy(alpha = 0.55f),
                     modifier = Modifier.fillMaxWidth(),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    textAlign = TextAlign.Center,
                 )
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        state.log,
-                        style = PhotoboothType.body11,
-                        color = PhotoboothColors.OnDarkSecondaryText,
-                        modifier = Modifier.weight(1f),
-                    )
-                    val shutterLabel = when {
-                        state.shooting -> "EXPOSING…"
-                        state.queue.size == 1 && state.acceptedCount > 0 -> "SHOOT ${state.frameLabel(state.queue.first())}"
-                        else -> "SHOOT ${state.shotCount}"
-                    }
-                    Button(
-                        onClick = onShutter,
-                        // Disabled while exposing, and permanently once the entry has been refused
-                        // (out-of-range retake): a refusal leaves shooting = false and an empty
-                        // queue, which onShutter() would otherwise read as "start a fresh session"
-                        // and wipe the strip the refusal was protecting. EXIT is the only way out.
-                        enabled = !state.shooting && !state.sessionRefused,
-                        modifier = Modifier.size(width = 150.dp, height = 56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PhotoboothColors.Paper,
-                            contentColor = PhotoboothColors.DarkSurface,
-                            disabledContainerColor = PhotoboothColors.DisabledOnDark,
-                        ),
-                    ) { Text(shutterLabel, style = PhotoboothType.heading18) }
+                val shutterLabel = when {
+                    state.shooting -> "shooting…"
+                    state.acceptedCount == 0 -> "shoot ${state.shotCount} pics"
+                    else -> "shoot pic ${state.acceptedCount + 1}"
                 }
+                if (state.shooting) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(Color.White.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(shutterLabel, style = PhotoboothType.display13().copy(fontSize = 15.sp), color = Color.White.copy(alpha = 0.7f))
+                    }
+                } else {
+                    HardShadowPill(
+                        onClick = onShutter,
+                        modifier = Modifier.fillMaxWidth(),
+                        height = 54.dp,
+                        enabled = !state.sessionRefused,
+                        backgroundColor = PhotoboothColors.Cream,
+                        shadowColor = Color.Black.copy(alpha = 0.25f),
+                        contentColor = PhotoboothColors.Ink,
+                    ) { Text(shutterLabel, style = PhotoboothType.display13().copy(fontSize = 16.sp)) }
+                }
+                Text(
+                    state.log,
+                    style = PhotoboothType.bodyCaption(),
+                    color = Color.White.copy(alpha = 0.55f),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
 }
 
+/**
+ * A pill button with a hard, non-blurred drop shadow (`0 5px 0 <shadowColor>` in the design,
+ * not a blurred elevation shadow) - built as two stacked pills: [shadowColor] offset 5dp down
+ * underneath, the real button unshifted on top with Material elevation zeroed.
+ */
+@Composable
+private fun HardShadowPill(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: androidx.compose.ui.unit.Dp,
+    enabled: Boolean = true,
+    backgroundColor: Color,
+    shadowColor: Color,
+    contentColor: Color,
+    content: @Composable () -> Unit,
+) {
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height)
+                .offset(y = 5.dp)
+                .background(shadowColor, RoundedCornerShape(50)),
+        )
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(height),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = backgroundColor,
+                contentColor = contentColor,
+                disabledContainerColor = backgroundColor.copy(alpha = 0.45f),
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+        ) { content() }
+    }
+}
+
 @Composable
 private fun ThumbnailRow(state: CaptureUiState, decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(PhotoboothSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
         state.frames.forEachIndexed { index, frame ->
             val decoded = rememberDecodedFrame(frame, decodedFrameCache)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .aspectRatio(4f / 3f)
-                    .background(if (frame != null) Color.Transparent else PhotoboothColors.ThumbnailEmptyFill)
-                    .border(1.dp, if (frame != null) PhotoboothColors.OnDarkAccent else PhotoboothColors.HairlineOnDark),
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (frame != null) Color.Transparent else Color.White.copy(alpha = 0x14 / 255f))
+                    .border(
+                        width = 2.dp,
+                        color = if (frame != null) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(8.dp),
+                    ),
                 contentAlignment = Alignment.BottomStart,
             ) {
                 if (decoded != null) {
-                    androidx.compose.foundation.Image(
+                    Image(
                         painter = BitmapPainter(decoded),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
@@ -415,9 +494,9 @@ private fun ThumbnailRow(state: CaptureUiState, decodedFrameCache: MutableMap<Ca
                 if (frame != null) {
                     Text(
                         state.frameLabel(index),
-                        style = PhotoboothType.meta8,
-                        color = PhotoboothColors.Paper,
-                        modifier = Modifier.padding(2.dp),
+                        style = PhotoboothType.display9(),
+                        color = PhotoboothColors.Cream,
+                        modifier = Modifier.padding(3.dp),
                     )
                 }
             }

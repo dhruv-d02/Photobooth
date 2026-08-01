@@ -1,0 +1,11 @@
+<resources>
+    <!-- Shown for the brief window between process start and MainActivity's first frame
+         (installSplashScreen() in MainActivity.kt). postSplashScreenTheme is what the
+         core-splashscreen library switches the Activity to once the splash is dismissed, so
+         the app's real runtime theme doesn't need touching. -->
+    <style name="Theme.Boothie.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+    </style>
+</resources>

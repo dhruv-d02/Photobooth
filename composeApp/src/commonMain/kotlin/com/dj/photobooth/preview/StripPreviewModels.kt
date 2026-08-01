@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import com.dj.photobooth.filter.FilmTreatment
 import com.dj.photobooth.filter.FrameColorPreset
 import com.dj.photobooth.filter.StripLayout
+import com.dj.photobooth.theme.Brand
 
 /**
  * UI state for the Strip Preview & Customise screen (design/handoff/README.md §3). Mirrors
@@ -20,22 +21,10 @@ import com.dj.photobooth.filter.StripLayout
 data class StripPreviewUiState(
     val decodedFrames: List<ImageBitmap?> = emptyList(),
     val treatment: FilmTreatment = FilmTreatment.None,
-    val frameColor: FrameColorPreset = FrameColorPreset.Paper,
+    val frameColor: FrameColorPreset = FrameColorPreset.Bubblegum,
     val layout: StripLayout = StripLayout.Strip,
     val composedImage: ImageBitmap? = null,
     val isComposing: Boolean = false,
-    val isSaving: Boolean = false,
-    val saved: Boolean = false,
-    val savedPath: String? = null,
-    val saveError: String? = null,
     val stamp: String = "",
-    val brand: String = "Photobooth",
-) {
-    /** Header-right "STRIP · F01"-style code (design/handoff/README.md line 131). */
-    val layoutFilterCode: String
-        get() = "${if (layout == StripLayout.Strip) "STRIP" else "GRID"} · ${treatment.code}"
-
-    /** Action-bar caption, flips once a save actually lands (line 151-152). */
-    val saveCaption: String
-        get() = if (saved) "saved to photos · archived in strips" else "saving also archives a copy in strips"
-}
+    val brand: String = Brand.NAME,
+)

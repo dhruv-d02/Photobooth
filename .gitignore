@@ -58,8 +58,7 @@ Pods/
 # Compose Multiplatform build outputs
 composeApp/build/
 
-# Claude Code session-local state (not project content)
-.claude/scheduled_tasks.lock
-# Agent worktrees - full checkouts of this repo at whatever revision an agent was working on.
-# Outside the Gradle build, but they pollute repo-wide greps with stale copies of every file.
-.claude/worktrees/
+# Claude Code session-local state (not project content) - includes personal
+# tool-permission settings and agent worktrees (full repo checkouts that
+# pollute repo-wide greps with stale copies of every file).
+.claude/

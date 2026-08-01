@@ -17,6 +17,15 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// No `group` is set on this project, so Compose's resource-generation plugin would otherwise
+// fall back to an ambiguous default package for the generated Res class - pin it explicitly
+// now that composeResources/font/ (Fredoka/Nunito/Caveat, see theme/Type.kt) is wired in.
+compose {
+    resources {
+        packageOfResClass = "com.dj.photobooth.generated.resources"
+    }
+}
+
 kotlin {
     // Sets the JDK toolchain once for every Kotlin compile task (Android + iOS), instead of
     // separately via androidTarget's compilerOptions.jvmTarget and AGP's own
@@ -45,6 +54,10 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            // Boothie splash screen (cream bg + sparkle icon) - the AndroidX compat library so
+            // the same theme-driven splash renders consistently on API 29-30 (no system splash
+            // exists pre-31) and API 31+ (where it maps onto the platform SplashScreen API).
+            implementation(libs.androidx.core.splashscreen)
             // CameraX: core (use-case framework) + camera2 (the Camera2-backed implementation
             // it needs at runtime) + lifecycle (bindToLifecycle, so the camera session follows
             // the Activity/lifecycle owner automatically) + view (PreviewView, the Android View

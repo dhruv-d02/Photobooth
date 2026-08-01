@@ -20,6 +20,12 @@ import com.dj.photobooth.theme.PhotoboothColors
  * Paragraph outside a @Composable context - the exact same gap StripCompositor.kt's footer-
  * text TODO already documents as deferred, so this doesn't add a new deferred item so much as
  * hit the same one.
+ *
+ * Boothie rebrand tweak: this used to reference the Industry-era continuity aliases
+ * (`AccentTintFaint`/`AccentTintStrong`, blue-tinted) - now points straight at the primary
+ * Cream/Gold tokens instead, per Color.kt's own guidance that a file being touched for the
+ * rebrand should reference the primary Boothie names directly rather than the compatibility
+ * aliases kept only for not-yet-rewritten screens.
  */
 internal fun placeholderFrameBitmap(width: Int = 1200, height: Int = 900): ImageBitmap {
     val bitmap = ImageBitmap(width, height)
@@ -30,11 +36,11 @@ internal fun placeholderFrameBitmap(width: Int = 1200, height: Int = 900): Image
         top = 0f,
         right = width.toFloat(),
         bottom = height.toFloat(),
-        paint = Paint().apply { color = PhotoboothColors.AccentTintFaint },
+        paint = Paint().apply { color = PhotoboothColors.Cream },
     )
 
     val stroke = Paint().apply {
-        color = PhotoboothColors.AccentTintStrong
+        color = PhotoboothColors.Gold.copy(alpha = 0.55f)
         strokeWidth = 6f
     }
     val step = 46f

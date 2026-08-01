@@ -34,7 +34,7 @@ class StripCompositorTest {
     @Test
     fun `strip layout output dimensions match the documented formula`() {
         val frames = List(4) { solidFrame() }
-        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Paper, StripLayout.Strip)
+        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Butter, StripLayout.Strip)
 
         // Design units doubled: padding 32, photoW 640, photoH 480, gap 20, footer 60.
         val expectedWidth = 2 * 32 + 640
@@ -46,7 +46,7 @@ class StripCompositorTest {
     @Test
     fun `grid layout output dimensions match the documented formula`() {
         val frames = List(4) { solidFrame() }
-        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Paper, StripLayout.Grid)
+        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Butter, StripLayout.Grid)
 
         // 2 columns, photoW/H 310, gap 20, padding 32, footer 60; 4 frames -> 2 rows.
         val expectedWidth = 2 * 32 + 640
@@ -59,7 +59,7 @@ class StripCompositorTest {
     fun `grid layout rounds up to a partial final row`() {
         // 3 frames in a 2-column grid must still allocate 2 rows (ceil(3/2) = 2), not 1.
         val frames = List(3) { solidFrame() }
-        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Paper, StripLayout.Grid)
+        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Butter, StripLayout.Grid)
 
         val expectedHeight = 2 * 32 + 2 * 310 + 1 * 20 + 60
         assertEquals(expectedHeight, output.height)
@@ -68,20 +68,20 @@ class StripCompositorTest {
     @Test
     fun `background fills with the chosen frame color outside the photo area`() {
         val frames = List(2) { solidFrame() }
-        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Sky, StripLayout.Strip)
+        val output = StripCompositor.compose(frames, FilmTreatment.None, FrameColorPreset.Grape, StripLayout.Strip)
 
         // The top-left corner (inside the outer padding, above/left of any photo) must be
         // the frame color's background, not left transparent/black.
         val pixelMap = output.toPixelMap()
         val topLeft = pixelMap[2, 2]
-        assertClose(FrameColorPreset.Sky.background.red, topLeft.red)
-        assertClose(FrameColorPreset.Sky.background.green, topLeft.green)
-        assertClose(FrameColorPreset.Sky.background.blue, topLeft.blue)
+        assertClose(FrameColorPreset.Grape.background.red, topLeft.red)
+        assertClose(FrameColorPreset.Grape.background.green, topLeft.green)
+        assertClose(FrameColorPreset.Grape.background.blue, topLeft.blue)
     }
 
     @Test
     fun `single frame count still produces a valid single-cell composite`() {
-        val output = StripCompositor.compose(listOf(solidFrame()), FilmTreatment.None, FrameColorPreset.Paper, StripLayout.Strip)
+        val output = StripCompositor.compose(listOf(solidFrame()), FilmTreatment.None, FrameColorPreset.Butter, StripLayout.Strip)
         val expectedHeight = 2 * 32 + 1 * 480 + 0 * 20 + 60
         assertEquals(expectedHeight, output.height)
     }
@@ -90,7 +90,7 @@ class StripCompositorTest {
     fun `composing an empty frame list is rejected rather than producing a bogus image`() {
         var threw = false
         try {
-            StripCompositor.compose(emptyList(), FilmTreatment.None, FrameColorPreset.Paper, StripLayout.Strip)
+            StripCompositor.compose(emptyList(), FilmTreatment.None, FrameColorPreset.Butter, StripLayout.Strip)
         } catch (e: IllegalArgumentException) {
             threw = true
         }

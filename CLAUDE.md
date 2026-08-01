@@ -4,7 +4,7 @@ Guidance for Claude Code (or any future contributor) working in this repository.
 
 ## Project status
 
-Phases 0–3 are built: KMP scaffold + design-token/theme module, CameraX capture loop, film treatment engine + strip/grid compositor, and export/history + navigation. Phase 4 (iOS) is blocked — see Known blockers. Treat the phase list below as the intended order, not a status report: check git history and the filesystem for what actually exists rather than trusting a status line here.
+Phases 0–3 are built: KMP scaffold + design-token/theme module, CameraX capture loop, film treatment engine + strip/grid compositor, and export/history + navigation. The app has since been through a full visual rebrand under the decided name **Boothie** (Y2K/scrapbook aesthetic, replacing the original "Industry" blueprint look) — see the Design section below. Phase 4 (iOS) is blocked — see Known blockers. Treat the phase list below as the intended order, not a status report: check git history and the filesystem for what actually exists rather than trusting a status line here.
 
 ## What this project is
 
@@ -12,7 +12,7 @@ Photobooth: a free, offline, single-user photobooth app for Android + iOS. Count
 
 ## Design
 
-Visual design is **final and pixel-faithful** — see [`design/handoff/README.md`](./design/handoff/README.md) for the complete spec (colors, type, spacing, motion timings, exact strip-composition math). The "Industry" blueprint aesthetic (square corners, hairline borders, "+" registration marks, Barlow/Barlow Condensed type, one steel-blue accent) applies to every screen — build the shared design-token/theme module and the `CornerTicks` motif component **before** any screen work, not alongside it. `design/handoff/*.dc.html` are prototype references only, not code to port; do not copy HTML/JS patterns, recreate the described behavior natively.
+Visual design is **final and pixel-faithful** — see [`design/handoff/README.md`](./design/handoff/README.md) for the complete spec (colors, type, spacing, motion timings, exact strip-composition math). The app has been rebranded from the original "Industry" blueprint aesthetic to **Boothie**, a Y2K/scrapbook aesthetic: cream ground, hot-pink primary, purple/gold/mint accents, rounded pill shapes, Fredoka/Nunito/Caveat type. Motifs are the `TapeCorner` composable (rotated low-opacity tape rectangles, replacing the retired `CornerTicks`) and the `Sparkle` composable, each used sparingly per their documented rules — tape corners only on photo/strip mount objects, sparkle only for celebration/confirmation moments (saved, strip ready). Build the shared design-token/theme module and these motif components **before** any screen work, not alongside it. `design/handoff/*.dc.html` are prototype references only, not code to port; do not copy HTML/JS patterns, recreate the described behavior natively.
 
 ## Tech stack (decided)
 
@@ -37,16 +37,16 @@ Always checkout a new branch scoped to the feature/area being worked on before c
 
 ## Build sequence (for orientation)
 
-1. Phase 0 — scaffold KMP + Compose Multiplatform project; build the design-token/theme module and `CornerTicks` motif component; empty Compose screen running on Android.
+1. Phase 0 — scaffold KMP + Compose Multiplatform project; build the design-token/theme module and `TapeCorner`/`Sparkle` motif components; empty Compose screen running on Android.
 2. Phase 1 — CameraX preview, permissions, session state machine (per-frame countdown → capture → proof → accept/reshoot loop), configurable shot count setting (2-8, default 4).
-3. Phase 2 — shared film treatment engine (5 fixed presets) + frame-color presets + strip/grid compositor, per the exact formulas in `architecture.md`.
+3. Phase 2 — shared film treatment engine (5 design-mandated presets, plus Black & White as a maintainer addition) + frame-color presets + strip/grid compositor, per the exact formulas in `architecture.md`.
 4. Phase 3 — export (MediaStore save, share intent) + local history (Room, uncapped).
 5. Phase 4 — iOS bring-up (blocked, see above).
-6. Phase 5 — branding (app name still undecided), icons, store prep.
+6. Phase 5 — branding: app name decided as **Boothie**, full Y2K/scrapbook rebrand shipped; icons and store prep still outstanding.
 
 ## Where to look
 
 - `README.md` — project pitch, feature list, status.
 - `architecture.md` — architecture diagrams, data flow, navigation graph, library rationale, domain model, strip-composition formulas, design system, non-functional considerations.
-- `design/handoff/README.md` — the full visual design spec (final, pixel-faithful).
+- `design/handoff/README.md` — the full visual design spec (final, pixel-faithful; the Boothie Y2K/scrapbook rebrand).
 - The maintainer's plan file (outside this repo, in their Claude Code plans directory) has the original decision-making context if deeper history is needed.

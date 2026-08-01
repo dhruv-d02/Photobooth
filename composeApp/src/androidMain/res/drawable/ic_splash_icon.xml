@@ -1,0 +1,14 @@
+<!-- Sparkle mark on transparent (design/handoff/README.md's wordmark glyph, `M12 0 L14.5 9 L24 12
+     L14.5 15 L12 24 L9.5 15 L0 12 L9.5 9 Z` on a 24x24 viewBox) - the splash theme's own
+     windowSplashScreenBackground supplies the cream backdrop, so unlike
+     ic_launcher_foreground.xml this has no background layer of its own. Sized at 96dp, well
+     under the SplashScreen API's ~240dp icon budget. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF4FA0"
+        android:pathData="M12,0 L14.5,9 L24,12 L14.5,15 L12,24 L9.5,15 L0,12 L9.5,9 Z" />
+</vector>

@@ -13,14 +13,11 @@
          (see AndroidMediaRepo.savePng). If a legacy path is ever reinstated, the permission
          must come back *with* a runtime request, not just a manifest line. -->
 
-    <!--
-      No launcher icon is declared yet - the real app name/branding is still undecided
-      (architecture.md § Non-functional considerations, App name). Adding a throwaway icon
-      now would just need redoing in Phase 5; the system default is fine for Phase 0.
-    -->
     <application
         android:name=".PhotoboothApplication"
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
@@ -43,7 +40,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            android:theme="@style/Theme.Boothie.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
