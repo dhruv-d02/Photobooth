@@ -147,7 +147,15 @@ class ColorMatrixOpsTest {
     }
 
     @Test
-    fun `none of the 5 Boothie treatments carry a duotone overlay`() {
+    fun `FilmTreatment BlackAndWhite fully desaturates`() {
+        val out = FilmTreatment.BlackAndWhite.colorMatrix.applyTo(1f, 0f, 0f)
+        // All three output channels must be equal (grayscale), regardless of contrast's exact scaling.
+        assertClose(out[0], out[1])
+        assertClose(out[1], out[2])
+    }
+
+    @Test
+    fun `none of the current treatments carry a duotone overlay`() {
         FilmTreatment.entries.forEach { treatment ->
             assertEquals(null, treatment.duotoneOverlay, "${treatment.name} should have no duotone overlay")
         }

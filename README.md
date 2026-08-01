@@ -11,7 +11,7 @@ A free, offline photobooth app for Android and iOS. Countdown, per-frame capture
 - Live camera preview with front/back switch and flash toggle
 - 3-2-1 countdown, one exposure at a time — each frame gets a proof overlay you can accept or reshoot before the next one fires, so a strip never ends up with a bad frame
 - Configurable shot count (2-8 exposures, default 4)
-- Film treatments (None, Disposable, Sunkissed, Cyber, Dreamy) and frame colors (Butter, Bubblegum, Grape, Spearmint) applied after capture
+- Film treatments (None, Disposable, Sunkissed, Cyber, Dreamy, Black & White) and frame colors (Butter, Bubblegum, Grape, Spearmint) applied after capture
 - Vertical strip or 2×2 grid layout, chosen at export time
 - Save to your device gallery, or share directly via the native share sheet
 - An uncapped local history grid of past strips, with delete

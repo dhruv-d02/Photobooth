@@ -39,7 +39,7 @@ Always checkout a new branch scoped to the feature/area being worked on before c
 
 1. Phase 0 — scaffold KMP + Compose Multiplatform project; build the design-token/theme module and `TapeCorner`/`Sparkle` motif components; empty Compose screen running on Android.
 2. Phase 1 — CameraX preview, permissions, session state machine (per-frame countdown → capture → proof → accept/reshoot loop), configurable shot count setting (2-8, default 4).
-3. Phase 2 — shared film treatment engine (5 fixed presets) + frame-color presets + strip/grid compositor, per the exact formulas in `architecture.md`.
+3. Phase 2 — shared film treatment engine (5 design-mandated presets, plus Black & White as a maintainer addition) + frame-color presets + strip/grid compositor, per the exact formulas in `architecture.md`.
 4. Phase 3 — export (MediaStore save, share intent) + local history (Room, uncapped).
 5. Phase 4 — iOS bring-up (blocked, see above).
 6. Phase 5 — branding: app name decided as **Boothie**, full Y2K/scrapbook rebrand shipped; icons and store prep still outstanding.

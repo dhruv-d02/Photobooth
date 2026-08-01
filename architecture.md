@@ -194,17 +194,20 @@ No sticker/overlay editor — the design has no drag-and-place system. "Frame" m
 CaptureSession
   id, createdAt, shotCount (2-8, default 4), rawFramePaths: List<String?>  (sparse until accepted)
 
-FilmTreatment ("flicket" presets, 5 fixed, not user-created — see `filter/FilmTreatment.kt` for the exact ColorMatrixOps chains)
-  F00 None       — identity ColorMatrix (skipped entirely at composite time as a no-op paint, see StripCompositor)
-  F01 Disposable — saturate(1.5).then(contrast(1.15)).then(brightness(1.05))
-  F02 Sunkissed  — sepia(0.45).then(saturate(1.3)).then(brightness(1.08)).then(hueRotateDegrees(-6))
-  F03 Cyber      — saturate(1.6).then(hueRotateDegrees(175)).then(contrast(1.1))
-  F04 Dreamy     — brightness(1.15).then(saturate(0.75)).then(contrast(0.92))
+FilmTreatment ("flicket" presets, not user-created — see `filter/FilmTreatment.kt` for the exact ColorMatrixOps chains).
+The first 5 are design-mandated (dc.html's `FILMS` table); F05 Black & White is a maintainer
+addition on top of that fixed set, added the same way any future preset would be — one more
+enum entry, since the Customize screen's flicket row iterates `FilmTreatment.entries` directly.
+  F00 None          — identity ColorMatrix (skipped entirely at composite time as a no-op paint, see StripCompositor)
+  F01 Disposable    — saturate(1.5).then(contrast(1.15)).then(brightness(1.05))
+  F02 Sunkissed     — sepia(0.45).then(saturate(1.3)).then(brightness(1.08)).then(hueRotateDegrees(-6))
+  F03 Cyber         — saturate(1.6).then(hueRotateDegrees(175)).then(contrast(1.1))
+  F04 Dreamy        — brightness(1.15).then(saturate(0.75)).then(contrast(0.92))
+  F05 Black & White — grayscale(1).then(contrast(1.12))
   — each a Skia ColorMatrix composition. The enum also carries an optional duotoneOverlay/
     duotoneOverlayAlpha pair (a Multiply-blend overlay) inherited from the retired Industry-era
-    F04 "Steel duotone" preset; none of the five current Boothie presets set it, so
-    StripCompositor's duotone-overlay branch is dead code today, kept only in case a future
-    preset needs it.
+    F04 "Steel duotone" preset; none of the six current presets set it, so StripCompositor's
+    duotone-overlay branch is dead code today, kept only in case a future preset needs it.
 
 FrameColor (4 fixed presets, see `filter/FrameColorPreset.kt`):
   Butter #FFC53D (text #2B1830) / Bubblegum #FF6FBB (text #FFF7EA, default) /

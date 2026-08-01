@@ -196,7 +196,29 @@ private fun Viewfinder(
         }
 
         state.review?.let { review ->
+            // The actual captured shot - without this, nothing opaque covers the live
+            // CameraPreviewSurface behind it during review, so the camera feed just keeps
+            // showing through and the user can never see what they captured.
+            ProofOverlay(review = review, decodedFrameCache = decodedFrameCache)
             ReviewBadgeRow(review = review, state = state)
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.ProofOverlay(
+    review: ReviewState,
+    decodedFrameCache: MutableMap<CaptureFrame, ImageBitmap>,
+) {
+    val decoded = rememberDecodedFrame(review.frame, decodedFrameCache)
+    Box(modifier = Modifier.fillMaxSize().background(PhotoboothColors.DarkSurface)) {
+        if (decoded != null) {
+            Image(
+                painter = BitmapPainter(decoded),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
