@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.application)
@@ -8,6 +10,26 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
 }
+
+// AdMob App ID / ad unit ID must never be committed - local.properties is already gitignored
+// (see .gitignore, it also holds sdk.dir) so it doubles as the per-developer secrets file
+// instead of introducing a second untracked file. Falls back to Google's own published TEST
+// App ID / test banner ad unit ID so a fresh checkout still builds and shows real (test) ads
+// with zero local setup - only a maintainer publishing a real build needs to add the two
+// admob.* lines to their local.properties. See README/architecture.md's AdMob section for the
+// values to add once real AdMob console IDs exist.
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+// Google's documented sample App ID (developers.google.com/admob/android/test-ads) - safe to
+// ship in test builds, never serves real ads.
+val admobAppId: String = localProperties.getProperty("admob.appId") ?: "ca-app-pub-3940256099942544~3347511713"
+// Google's documented sample banner ad unit ID - same test-only guarantee as the App ID above.
+val admobBannerAdUnitId: String =
+    localProperties.getProperty("admob.bannerAdUnitId") ?: "ca-app-pub-3940256099942544/9214589741"
 
 // Room KMP schema export. The generated JSON under schemas/ IS committed, deliberately: it's
 // the recorded shape of each shipped schema version, which is what lets Room detect a
@@ -66,6 +88,10 @@ kotlin {
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.view)
+            // AdMob (Google Mobile Ads SDK) - Android-only, no KMP artifact, hence living only
+            // in androidMain rather than commonMain like everything else here. The shared
+            // call site is the AdBanner expect/actual (ads/AdBanner.kt) instead.
+            implementation(libs.play.services.ads)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -140,6 +166,20 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
+        // Fills the manifest's <meta-data android:value="${admobAppId}"> placeholder (see
+        // AndroidManifest.xml) - AdMob requires this to be present before MobileAds.initialize()
+        // is called, and the whole point of the localProperties indirection above is that this
+        // resolved value differs per developer/build without ever being committed.
+        manifestPlaceholders["admobAppId"] = admobAppId
+        // Exposed as BuildConfig.ADMOB_BANNER_AD_UNIT_ID for AdBanner.android.kt - same
+        // gitignored-local-value pattern as the App ID, so swapping test IDs for real ones is a
+        // local.properties edit, never a code change.
+        buildConfigField("String", "ADMOB_BANNER_AD_UNIT_ID", "\"$admobBannerAdUnitId\"")
+    }
+    buildFeatures {
+        // Off by default on AGP 8+; needed for the buildConfigField above.
+        buildConfig = true
     }
     buildTypes {
         release {
