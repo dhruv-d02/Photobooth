@@ -5,9 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.dj.photobooth.ads.AdConsent
 import com.dj.photobooth.camera.AndroidCameraController
 import com.dj.photobooth.export.AndroidMediaRepo
 import com.dj.photobooth.export.AndroidShareSheet
+import com.google.android.ump.UserMessagingPlatform
 
 // The only thing Android-specific about launching this app is the Activity itself, plus
 // constructing the platform implementations App() needs (camera, media store, share sheet) -
@@ -25,6 +27,20 @@ class MainActivity : ComponentActivity() {
         // AndroidManifest.xml) and swaps to postSplashScreenTheme once the splash is dismissed.
         installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // AdMob consent (GDPR/UK/CCPA) - must run before any ad request, and needs an Activity
+        // (to host the consent form UI if one's required), which is why this lives here and not
+        // in PhotoboothApplication.onCreate alongside MobileAds.initialize(). AdConsent starts
+        // false, so AdBanner withholds its ad request until this callback fires at least once.
+        val consentInformation = UserMessagingPlatform.getConsentInformation(this)
+        UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { formError ->
+            // formError is only non-null if the form itself failed to load/show (e.g. no
+            // network) - consentInformation.canRequestAds() is still authoritative either way
+            // (mirrors Google's own quickstart sample), so proceed regardless rather than
+            // leaving AdConsent stuck at its false default on a transient failure.
+            AdConsent.update(consentInformation.canRequestAds())
+        }
+
         val cameraController = AndroidCameraController(this)
         val galleryRepo = (application as PhotoboothApplication).galleryRepo
         val mediaRepo = AndroidMediaRepo(this)

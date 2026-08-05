@@ -25,6 +25,10 @@ room = "2.8.4"
 sqlite = "2.7.0"
 ksp = "2.3.10"
 kotlinxDatetime = "0.8.0"
+# AdMob (Google Mobile Ads SDK), Android-only - no KMP/iOS artifact exists, so this is only ever
+# referenced from androidMain.dependencies. Verify against the latest release before a real
+# production build; pinned here to whatever was current when this was wired in.
+playServicesAds = "23.6.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
@@ -55,6 +59,7 @@ androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", 
 androidx-sqlite-framework = { group = "androidx.sqlite", name = "sqlite-framework", version.ref = "sqlite" }
 kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 navigation-compose = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

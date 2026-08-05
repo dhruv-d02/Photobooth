@@ -185,6 +185,7 @@ Photobooth/
 | Crash reporting | **Firebase Crashlytics** (opt-in) | Widely used, free tier, easy to disclose truthfully in store privacy forms. | Sentry (comparable; Crashlytics chosen for ecosystem familiarity). |
 | Fonts | **Fredoka + Nunito + Caveat** (Google Fonts, OFL-licensed), each bundled as static-weight `.ttf` instances of their variable font in `composeApp/src/commonMain/composeResources/font/` and wired through Compose Multiplatform's `Font`/`FontFamily` resource APIs (`theme/Type.kt`) — replacing the original Barlow/Barlow Condensed pairing as part of the Boothie rebrand. Fredoka (500/600/700) carries display/headline/button text, Nunito (400/600/700/800) carries body/UI copy, Caveat (600/700) carries handwritten stamps/captions. | Design-mandated per the (now Boothie) design handoff; real assets, not a placeholder/pending item. | A codebase-default font pairing — not applicable here since this app's visual identity *is* this type system. |
 | Icons | **Lucide**, stroke-width 1.5 | Design-mandated replacement for the prototype's monospace glyph stand-ins (camera / aperture / layout-grid tab icons). | — |
+| Ads | **Google AdMob** (`play-services-ads`), Android-only | The standard mobile ad SDK — Google AdSense (what was initially asked for) only serves web pages, not native apps. See § Adverts (AdMob). | Meta Audience Network / Unity Ads (comparable, but AdMob has the largest fill/eCPM for a general-audience app and the simplest single-account setup for a solo dev). |
 
 ## Core domain model
 
@@ -266,6 +267,14 @@ A dedicated Compose theme/token module is required before Phase 1 screens are bu
 - **No `iosX64` target**: Compose Multiplatform 1.11.1 doesn't publish artifacts for the Intel iOS simulator target. `composeApp` only declares `iosArm64` (device) and `iosSimulatorArm64` (Apple Silicon simulator) — together these cover every realistic dev setup.
 - **iosMain is unverified**: it compiles as Kotlin source but has never been built, since Kotlin/Native can only compile Apple targets on macOS (see the Mac blocker above). Treat it as unverified until Phase 4.
 
+## Adverts (AdMob)
+
+A single Google AdMob banner ad, shown only on the Strips/Gallery screen (`GalleryScreen.kt`) — pulled forward ahead of the rest of the v2 parking lot below, at the maintainer's request. Android-only: AdMob has no KMP/iOS artifact, so it follows the same `expect`/`actual` pattern as `CameraPreviewSurface` rather than an interface-backed abstraction like `MediaRepo` — `ads/AdBanner.kt` (commonMain) declares the composable, `ads/AdBanner.android.kt` hosts a real Google `AdView` via `AndroidView`, `ads/AdBanner.ios.kt` renders nothing (Phase 4 territory, same as the iOS camera preview stub).
+
+This is the one place this app makes a network call or shares data with a third party — everything else (capture, film treatments, compositing, gallery/history) stays fully on-device, per the "Guiding principle" above. Concretely: an ad request includes device/advertising identifiers, handled by Google per their own privacy terms, not this app's. `ads/AdConsent.kt` + a UMP (User Messaging Platform) consent flow run once in `MainActivity.onCreate` gate every ad request behind that consent decision — required by Google/GDPR policy for EEA/UK users, not optional polish. A "privacy policy" link on the Gallery screen (`ads/PrivacyPolicy.kt`'s `PRIVACY_POLICY_URL`) is a Play Store + AdMob policy requirement once ads are live; it's currently a placeholder pending the maintainer hosting a real page.
+
+App ID and ad unit ID are never committed: `composeApp/build.gradle.kts` reads `admob.appId` / `admob.bannerAdUnitId` from `local.properties` (already-gitignored, same file as `sdk.dir`) and falls back to Google's own published test IDs so a fresh checkout still builds and serves real (test-only) ads with zero setup. Swapping in real production IDs is a `local.properties` edit, never a code change — see the AdMob console steps README links to.
+
 ## v2 parking lot (explicitly deferred)
 
-Live face-tracking AR filters (ARKit/ARCore or a paid SDK like Banuba/DeepAR), cloud sync & accounts, multi-user shared event galleries, printing (AirPrint/Android PrintManager), boomerang/short video capture, monetization (ads/IAP/subscription).
+Live face-tracking AR filters (ARKit/ARCore or a paid SDK like Banuba/DeepAR), cloud sync & accounts, multi-user shared event galleries, printing (AirPrint/Android PrintManager), boomerang/short video capture. Monetization (a single AdMob banner) is no longer deferred — see § Adverts (AdMob) above; IAP/subscription remain parked.

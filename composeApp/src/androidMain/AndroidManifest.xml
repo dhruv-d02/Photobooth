@@ -4,6 +4,13 @@
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
 
+    <!-- AdMob: ad requests and the SDK's own device-identifier collection require network
+         access, which is new to this app - see README/architecture.md's AdMob privacy note.
+         ACCESS_NETWORK_STATE lets the SDK skip a request when there's known to be no
+         connection rather than always attempting and failing. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- No WRITE_EXTERNAL_STORAGE here, deliberately. It used to be declared with
          maxSdkVersion="28" for the legacy (pre-scoped-storage) export path, but minSdk is now
          29, so that declaration could never apply to any device able to install this app -
@@ -20,6 +27,14 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!-- AdMob requires this before MobileAds.initialize() is called (PhotoboothApplication)
+             or the SDK throws at first ad request. ${admobAppId} is a Gradle manifest
+             placeholder resolved from local.properties (or a Google test App ID if unset) -
+             see composeApp/build.gradle.kts, never hardcode a real App ID here. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
 
         <!-- Locked portrait: design/handoff/README.md has no landscape spec for any screen
              (every layout, spacing figure and strip-composition formula assumes a vertical
