@@ -139,10 +139,9 @@ fun GalleryScreen(
             }
         }
 
-        // AdMob banner - Strips/Gallery tab only, per architecture.md's AdMob placement
-        // rationale (avoids the Capture/Preview/Share flow entirely). Pinned below the
-        // scrollable grid, outside its weight(1f) Column, so it doesn't reflow as the grid's
-        // item count changes.
+        // AdMob banner - also on Booth (LandingScreen), never on Capture/Preview/Share, per
+        // architecture.md's AdMob placement rationale. Pinned below the scrollable grid,
+        // outside its weight(1f) Column, so it doesn't reflow as the grid's item count changes.
         AdBanner(modifier = Modifier.fillMaxWidth())
 
         // Play Store + AdMob policy require a privacy policy reachable from the app once ads

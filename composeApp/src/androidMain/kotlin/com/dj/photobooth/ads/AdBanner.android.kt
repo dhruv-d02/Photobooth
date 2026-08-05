@@ -1,5 +1,6 @@
 package com.dj.photobooth.ads
 
+import android.util.Log
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -13,9 +14,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.dj.photobooth.BuildConfig
+import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.LoadAdError
 
 @Composable
 actual fun AdBanner(modifier: Modifier) {
@@ -41,6 +44,22 @@ actual fun AdBanner(modifier: Modifier) {
         AdView(context).apply {
             setAdSize(adSize)
             adUnitId = BuildConfig.ADMOB_BANNER_AD_UNIT_ID
+            // No visibility into ad load outcomes otherwise - a silent no-fill/misconfigured
+            // ad-unit-ID looks identical to "working as designed" (collapsed to zero height)
+            // from the UI alone, see AdBanner.kt's doc comment.
+            adListener = object : AdListener() {
+                override fun onAdLoaded() {
+                    Log.d("AdBanner", "ad loaded: unitId=$adUnitId")
+                }
+
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.w(
+                        "AdBanner",
+                        "ad failed to load: unitId=$adUnitId code=${error.code} " +
+                            "domain=${error.domain} message=${error.message}",
+                    )
+                }
+            }
         }
     }
     DisposableEffect(adView) {

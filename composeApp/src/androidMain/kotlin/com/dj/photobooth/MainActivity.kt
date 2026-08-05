@@ -1,6 +1,7 @@
 package com.dj.photobooth
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,6 +39,12 @@ class MainActivity : ComponentActivity() {
             // network) - consentInformation.canRequestAds() is still authoritative either way
             // (mirrors Google's own quickstart sample), so proceed regardless rather than
             // leaving AdConsent stuck at its false default on a transient failure.
+            Log.d(
+                "AdConsent",
+                "consent flow resolved: formError=${formError?.message} " +
+                    "canRequestAds=${consentInformation.canRequestAds()} " +
+                    "status=${consentInformation.consentStatus}",
+            )
             AdConsent.update(consentInformation.canRequestAds())
         }
 
