@@ -5,6 +5,7 @@ import com.dj.photobooth.gallery.AndroidAppDatabaseFactory
 import com.dj.photobooth.gallery.AppDatabase
 import com.dj.photobooth.gallery.GalleryRepo
 import com.dj.photobooth.gallery.RoomGalleryRepo
+import com.google.android.gms.ads.MobileAds
 
 /**
  * Owns the process-wide singletons that must outlive any single Activity.
@@ -27,4 +28,15 @@ class PhotoboothApplication : Application() {
     val database: AppDatabase by lazy { AndroidAppDatabaseFactory(this).create() }
 
     val galleryRepo: GalleryRepo by lazy { RoomGalleryRepo(database) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // MobileAds.initialize() is safe to call from the main thread - it does its own SDK
+        // setup work off-thread internally - and can run before consent is gathered, since it
+        // only initializes the SDK rather than requesting an ad itself. The actual per-ad
+        // request (AdBanner.android.kt) separately waits on AdConsent, which MainActivity
+        // populates via the UMP consent flow - that gate needs an Activity to host its UI, so
+        // it can't live here.
+        MobileAds.initialize(this)
+    }
 }

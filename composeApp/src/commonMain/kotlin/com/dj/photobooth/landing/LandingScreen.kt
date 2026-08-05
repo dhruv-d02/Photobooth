@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dj.photobooth.ads.AdBanner
 import com.dj.photobooth.theme.Brand
 import com.dj.photobooth.theme.PhotoboothColors
 import com.dj.photobooth.theme.PhotoboothType
@@ -101,6 +102,12 @@ fun LandingScreen(onStartSession: () -> Unit) {
             }
         }
         StartBlock(onStartSession = onStartSession)
+
+        // AdMob banner - Booth (landing) tab, same placement pattern as GalleryScreen's:
+        // pinned below the screen's own content (outside its weight(1f) Column) so it doesn't
+        // reflow the hero copy/strip preview above, and collapses to zero height when no ad is
+        // available rather than reserving blank space (see AdBanner.kt's doc comment).
+        AdBanner(modifier = Modifier.fillMaxWidth())
     }
 }
 

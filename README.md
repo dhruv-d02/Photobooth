@@ -15,8 +15,12 @@ A free, offline photobooth app for Android and iOS. Countdown, per-frame capture
 - Vertical strip or 2×2 grid layout, chosen at export time
 - Save to your device gallery, or share directly via the native share sheet
 - An uncapped local history grid of past strips, with delete
+- A single AdMob banner ad on the Strips (history) tab
 
-No accounts, no cloud, nothing leaves your device.
+No accounts, no cloud — capture, editing, and your saved strips never leave your device. The one
+exception is the banner ad on the Strips tab, which involves a network call and third-party
+(Google) data sharing per Google's AdMob SDK; see [`architecture.md`](./architecture.md#adverts-admob)
+for what that entails and a link to the privacy policy.
 
 ## Design
 
@@ -34,4 +38,4 @@ Kotlin Multiplatform + Compose Multiplatform, sharing UI and core image logic (f
 
 ## Roadmap
 
-Not yet planned for v1, tracked as future work: live face-tracking AR filters, cloud sync, shared multi-user event galleries, printing, boomerang/video capture, monetization.
+Not yet planned for v1, tracked as future work: live face-tracking AR filters, cloud sync, shared multi-user event galleries, printing, boomerang/video capture. Monetization (a single AdMob banner) shipped ahead of the rest of this list — see [`architecture.md`](./architecture.md#adverts-admob).

@@ -44,9 +44,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dj.photobooth.ads.AdBanner
+import com.dj.photobooth.ads.PRIVACY_POLICY_URL
 import com.dj.photobooth.compose.rememberPathImageLoader
 import com.dj.photobooth.filter.FrameColorPreset
 import com.dj.photobooth.theme.PhotoboothColors
@@ -87,6 +90,7 @@ fun GalleryScreen(
     onStartStrip: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
+    val uriHandler = LocalUriHandler.current
 
     // statusBarsPadding: the NavHost deliberately applies no blanket status-bar inset (it
     // would break Capture's full-bleed dark screen), so each light screen adds its own.
@@ -134,6 +138,25 @@ fun GalleryScreen(
                 }
             }
         }
+
+        // AdMob banner - also on Booth (LandingScreen), never on Capture/Preview/Share, per
+        // architecture.md's AdMob placement rationale. Pinned below the scrollable grid,
+        // outside its weight(1f) Column, so it doesn't reflow as the grid's item count changes.
+        AdBanner(modifier = Modifier.fillMaxWidth())
+
+        // Play Store + AdMob policy require a privacy policy reachable from the app once ads
+        // are live. Not part of the original design handoff (predates this feature) - kept as
+        // muted/minimal as possible rather than matching a spec that doesn't cover it.
+        Text(
+            text = "privacy policy",
+            style = PhotoboothType.bodyCaption(),
+            color = PhotoboothColors.TextMuted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { uriHandler.openUri(PRIVACY_POLICY_URL) }
+                .padding(vertical = PhotoboothSpacing.xs),
+        )
     }
 }
 
